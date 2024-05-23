@@ -2,7 +2,7 @@ use crate::bit_functions::{get_lsb, bidirectional_shift, pawn_capture_mask, iter
 use crate::constants::*;
 
 #[derive(Clone, Debug)]
-struct Board {
+pub struct Board {
 
     white_pawns:   u64,
     white_knights: u64,
@@ -27,7 +27,7 @@ struct Board {
 }
 
 impl Board {
-    fn new() -> Board {
+    pub fn new() -> Board {
         Board {
             white_pawns:   0x000000000000FF00,
             white_knights: 0x0000000000000042,
