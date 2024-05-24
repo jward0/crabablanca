@@ -1,41 +1,86 @@
 use std::error::Error;
 use std::io::{self, Write};
+use std::time::Duration;
 
 use crabablanca::board::Board;
 use crabablanca::renderer::Renderer;
 
-use crossterm::{
-    ExecutableCommand, QueueableCommand,
-    terminal, cursor, style::{self, Stylize}
-};
-use crossterm::style::{Color::{Green, White}, Colors, Print, SetColors};
-
-use tokio::sync::mpsc;
-use tokio::task;
-use tokio::time::{self, Duration};
-
+use crossterm::{execute, cursor};
+use crossterm::event::{self, read, poll, Event, KeyCode};
+use crossterm::terminal::{self, Clear, ClearType, disable_raw_mode, enable_raw_mode};
 
 fn main() -> Result<(), Box<dyn Error>>{
+
     let board: Board = Board::new(); 
 
     let mut renderer = Renderer::new()?;
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    renderer.parse_board(&board)?;
 
-    renderer.write_to_square((2, 3), 'p', 'b')?;
+    enable_raw_mode()?;
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    loop {
+        let mut input = String::new();
+        // Capture input
+        loop {
+            if let Event::Key(key_event) = read()? {
+                match key_event.code {
+                    KeyCode::Enter => break,
+                    KeyCode::Backspace => {
+                        input.pop();
+                        print!("\x08 \x08");
+                        io::stdout().flush().unwrap();
+                    }
+                    KeyCode::Char(c) => {
+                        input.push(c);
+                        print!("{}", c);
+                        io::stdout().flush().unwrap();
+                    }
+                    _ => {}
+                }
+            }
+        }
 
-    renderer.write_to_square((2, 3), 'n', 'b')?;
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+        execute!(
+            io::stdout(),
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine)
+        )?;
 
-    renderer.write_to_square((2, 3), 'n', 'w')?;
+        if input == "exit" {
+            disable_raw_mode()?;
+            println!();
+            return Ok(())
+        }
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+        input.clear();
+        
+    }
 
-    renderer.clear_square((2, 3))?;
+    // std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // renderer.write_to_square((2, 3), 'p', 'b')?;
+
+    // while !poll(Duration::from_millis(100))? {
+        
+    // }
+
+    // println!("{:?}", read()?);
+
+    // // std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // renderer.write_to_square((2, 3), 'n', 'b')?;
+
+    // // std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // renderer.write_to_square((2, 3), 'n', 'w')?;
+
+    // // std::thread::sleep(std::time::Duration::from_secs(3));
+
+    // renderer.clear_square((2, 3))?;
 
     Ok(())
+
 }
 

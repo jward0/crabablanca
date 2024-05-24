@@ -32,8 +32,14 @@ pub fn iterate_over(bits: u64) -> Vec<u64> {
     locs
 }
 
-pub fn apply_move(bits: u64, from: u64, to: u64) -> u64 {
-    if (bits & from) == 1 {
+pub fn bit_to_coord(bit: u64) -> (u16, u16) {
+    assert_ne!(bit, 0);
+    let pos = bit.trailing_zeros() as u16;
+    (pos % 8, pos / 8)
+}
+
+pub fn move_piece(bits: u64, from: u64, to: u64) -> u64 {
+    if (bits & from) != 0 {
         // This is the bitboard the piece belongs to
         // So move bit
         (bits & !from) | to
@@ -49,13 +55,24 @@ pub fn get_bit_rf(bit: u64) -> (u8, u8) {
     ((bit.trailing_zeros() / 8) as u8, (bit.trailing_zeros() % 8) as u8)
 }
 
-pub fn pawn_capture_mask(bit: u64) -> u64 {
-    if (bit & FILE_A) == 1 {
-        bit << 9
-    } else if (bit & FILE_H) == 1 {
-        bit << 7
-    } else {
-        bit << 7 + bit << 9
+pub fn pawn_capture_mask(bit: u64, to_move: u8) -> u64 {
+
+    if to_move == 1 { // White pawn capture mask
+        if (bit & FILE_A) != 0 {
+            bit << 9
+        } else if (bit & FILE_H) != 0 {
+            bit << 7
+        } else {
+            (bit << 7) + (bit << 9)
+        }
+    } else { // Black pawn capture mask
+        if (bit & FILE_A) != 0 {
+            bit >> 7
+        } else if (bit & FILE_H) != 0 {
+            bit >> 9
+        } else {
+            (bit >> 7) + (bit >> 9)
+        }
     }
 }
 
@@ -80,41 +97,41 @@ pub fn knight_move_mask(bit: u64) -> u64 {
     let mut mask: u64 = 0;
     let mut shifts: Vec<i8> = vec![15, 17, 10, -6, -15, -17, -10, 6];
 
-    if (bit & FILE_A) == 1 {
+    if (bit & FILE_A) != 0 {
         shifts[0] = 0;
         shifts[5] = 0;
         shifts[6] = 0;
         shifts[7] = 0;
     }
-    if (bit & FILE_B) == 1 {
+    if (bit & FILE_B) != 0 {
         shifts[6] = 0;
         shifts[7] = 0;
     }
-    if (bit & FILE_G) == 1 {
+    if (bit & FILE_G) != 0 {
         shifts[2] = 0;
         shifts[3] = 0;
     }
-    if (bit & FILE_H) == 1 {
+    if (bit & FILE_H) != 0 {
         shifts[1] = 0;
         shifts[2] = 0;
         shifts[3] = 0;
         shifts[4] = 0;
     }
-    if (bit & RANK_1) == 1 {
+    if (bit & RANK_1) != 0 {
         shifts[3] = 0;
         shifts[4] = 0;
         shifts[5] = 0;
         shifts[6] = 0;
     }
-    if (bit & RANK_2) == 1 {
+    if (bit & RANK_2) != 0 {
         shifts[4] = 0;
         shifts[5] = 0;
     }
-    if (bit & RANK_7) == 1 {
+    if (bit & RANK_7) != 0 {
         shifts[1] = 0;
         shifts[2] = 0;
     }
-    if (bit & RANK_8) == 1 {
+    if (bit & RANK_8) != 0 {
         shifts[0] = 0;
         shifts[1] = 0;
         shifts[2] = 0;

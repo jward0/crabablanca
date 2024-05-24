@@ -1,28 +1,28 @@
-use crate::bit_functions::{get_lsb, bidirectional_shift, pawn_capture_mask, iterate_over, apply_move};
+use crate::bit_functions::{get_lsb, bidirectional_shift, pawn_capture_mask, iterate_over, move_piece};
 use crate::constants::*;
 
 #[derive(Clone, Debug)]
 pub struct Board {
 
-    white_pawns:   u64,
-    white_knights: u64,
-    white_bishops: u64,
-    white_rooks:   u64,
-    white_queens:  u64,
-    white_king:    u64,
+    pub white_pawns:   u64,
+    pub white_knights: u64,
+    pub white_bishops: u64,
+    pub white_rooks:   u64,
+    pub white_queens:  u64,
+    pub white_king:    u64,
 
-    black_pawns:   u64,
-    black_knights: u64,
-    black_bishops: u64,
-    black_rooks:   u64,
-    black_queens:  u64,
-    black_king:    u64,
+    pub black_pawns:   u64,
+    pub black_knights: u64,
+    pub black_bishops: u64,
+    pub black_rooks:   u64,
+    pub black_queens:  u64,
+    pub black_king:    u64,
 
-    all_white:     u64,
-    all_black:     u64,
-    all_pieces:    u64,
+    pub all_white:     u64,
+    pub all_black:     u64,
+    pub all_pieces:    u64,
 
-    to_move:       u8 // 1 for white to move, 0 for black to move
+    pub to_move:       u8 // 1 for white to move, 0 for black to move
 
 }
 
@@ -53,21 +53,21 @@ impl Board {
 
     fn apply_move(&self, from: u64, to: u64) -> Board {
         Board {
-            white_pawns:   apply_move(self.white_pawns, from, to),
-            white_knights: apply_move(self.white_knights, from, to),
-            white_bishops: apply_move(self.white_bishops, from, to),
-            white_rooks:   apply_move(self.white_rooks, from, to),
-            white_queens:  apply_move(self.white_queens, from, to),
-            white_king:    apply_move(self.white_king, from, to),
-            black_pawns:   apply_move(self.black_pawns, from, to),
-            black_knights: apply_move(self.black_knights, from, to),
-            black_bishops: apply_move(self.black_bishops, from, to),
-            black_rooks:   apply_move(self.black_rooks, from, to),
-            black_queens:  apply_move(self.black_queens, from, to),
-            black_king:    apply_move(self.black_king, from, to),
-            all_white:     apply_move(self.all_white, from, to),
-            all_black:     apply_move(self.all_black, from, to),
-            all_pieces:    apply_move(self.all_pieces, from, to),
+            white_pawns:   move_piece(self.white_pawns, from, to),
+            white_knights: move_piece(self.white_knights, from, to),
+            white_bishops: move_piece(self.white_bishops, from, to),
+            white_rooks:   move_piece(self.white_rooks, from, to),
+            white_queens:  move_piece(self.white_queens, from, to),
+            white_king:    move_piece(self.white_king, from, to),
+            black_pawns:   move_piece(self.black_pawns, from, to),
+            black_knights: move_piece(self.black_knights, from, to),
+            black_bishops: move_piece(self.black_bishops, from, to),
+            black_rooks:   move_piece(self.black_rooks, from, to),
+            black_queens:  move_piece(self.black_queens, from, to),
+            black_king:    move_piece(self.black_king, from, to),
+            all_white:     move_piece(self.all_white, from, to),
+            all_black:     move_piece(self.all_black, from, to),
+            all_pieces:    move_piece(self.all_pieces, from, to),
             to_move: self.to_move ^ (1 << 7) 
         }
     }
@@ -76,7 +76,7 @@ impl Board {
         true
     }
 
-    fn generate_move_list(&self) -> Vec<Board> {
+    pub fn generate_move_list(&self) -> Vec<Board> {
 
         let pawns: Vec<u64>;
         let pawn_start_row: u64;
@@ -113,14 +113,14 @@ impl Board {
         
             if (self.all_pieces & single_move) == 0 {
                 // Check for promotion
-                if (single_move & pawn_promote_row) == 1 {
+                if (single_move & pawn_promote_row) != 0 {
                     // TODO: IMPLEMENT PROMOTION
                 } else {
                     pawn_moves.push(single_move)
                 }
             }
             // Double moves
-            if (pawn & pawn_start_row) == 1 {
+            if (pawn & pawn_start_row) != 0 {
                 let double_move: u64 = bidirectional_shift(*pawn, 16, self.to_move);
                 if (self.all_pieces & double_move) == 0 {
                     pawn_moves.push(double_move)
@@ -129,7 +129,7 @@ impl Board {
 
             // Standard captures
 
-            let capture_mask: u64 = pawn_capture_mask(*pawn);
+            let capture_mask: u64 = pawn_capture_mask(*pawn, self.to_move);
             for capture in iterate_over(capture_mask).iter() {
                 if (capture & valid_captures) == 1 {
                     pawn_moves.push(*capture)
