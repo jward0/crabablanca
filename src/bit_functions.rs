@@ -180,6 +180,6 @@ pub fn queen_move_mask(bit: u64) -> u64 {
 
 pub fn king_move_mask(bit: u64) -> u64 {
 
-    let row: u64 = sl(bit) & sr(bit) & bit;
-    row & su(row) & sd(row) & !bit
+    let row: u64 = sl(bit) | sr(bit) | bit;
+    row | su(row) | sd(row) & !bit
 }
