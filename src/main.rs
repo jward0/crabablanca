@@ -17,6 +17,13 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     renderer.parse_board(&board)?;
 
+    let move_list = board.generate_move_list();
+
+    for move_ in move_list {
+        renderer.parse_board(&move_)?;
+        std::thread::sleep(std::time::Duration::from_secs(1))
+    }
+
     enable_raw_mode()?;
 
     loop {

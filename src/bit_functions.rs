@@ -1,12 +1,21 @@
 use crate::constants::*;
 
 pub fn get_lsb(bits: u64) -> u64 {
-    assert_ne!(bits, 0);
+    // assert_ne!(bits, 0);
+
+    if bits == 0 {
+        return 0
+    }
+
     1 << bits.trailing_zeros() as u64
 }
 
 pub fn get_msb(bits: u64) -> u64 {
-    assert_ne!(bits, 0);
+    // assert_ne!(bits, 0);
+
+    if bits == 0 {
+        return 0
+    }
     1 << 63 - bits.leading_zeros() as u64
 }
 
@@ -17,6 +26,32 @@ pub fn bidirectional_shift(bits: u64, shift: u64, direction: u8) -> u64 {
     } else {
         bits >> shift
     }
+}
+
+fn i8_shift(bits: u64, shift: i8) -> u64 {
+    if shift > 0 {
+        return bits << shift as u64
+    } else {
+        return bits >> (-1*shift) as u64
+    }
+}
+
+pub fn fill_from(bit: u64) -> u64 {
+
+    if bit == 0 {
+        return 0
+    }
+
+    u64::MAX << bit.trailing_zeros() as u64
+}
+
+pub fn fill_to(bit: u64) -> u64 {
+
+    if bit == 0 {
+        return 0
+    }
+
+    u64::MAX >> 63 - bit.trailing_zeros() as u64
 }
 
 pub fn iterate_over(bits: u64) -> Vec<u64> {
@@ -92,7 +127,7 @@ pub fn sd(bit: u64) -> u64 {
     if bit & RANK_1 != 0 {0} else {bit >> 8}
 }
 
-pub fn knight_move_mask(bit: u64) -> u64 {
+pub fn knight_move_mask(bit: u64, own_pieces: u64) -> u64 {
 
     let mut mask: u64 = 0;
     let mut shifts: Vec<i8> = vec![15, 17, 10, -6, -15, -17, -10, 6];
@@ -140,14 +175,15 @@ pub fn knight_move_mask(bit: u64) -> u64 {
 
     for shift in shifts.iter() {
         if *shift != 0 {
-            mask += ((mask as i8) + shift) as u64;
+            // mask += ((bit as i8) + shift) as u64;
+            mask += i8_shift(bit, *shift)
         }
     }
 
-    mask
+    mask & !own_pieces & !bit
 }
 
-pub fn bishop_move_mask(bit: u64) -> u64 {
+pub fn bishop_move_mask(bit: u64, own_pieces: u64, enemy_pieces: u64) -> u64 {
     // TODO: tidy this up a bit (make more bitwise)
     let (r, f) = get_bit_rf(bit);
 
@@ -166,20 +202,49 @@ pub fn bishop_move_mask(bit: u64) -> u64 {
         anti_diag = ANTI_DIAG >> (7 - r - f) * 8;
     }
 
-    (main_diag | anti_diag) & !bit
+    let main_ray: u64 = block_ray(bit, main_diag, own_pieces, enemy_pieces);
+    let anti_ray: u64 = block_ray(bit, anti_diag, own_pieces, enemy_pieces);
+
+    (main_ray | anti_ray) & !bit
+
+    // (main_diag | anti_diag) & !bit
 }
 
-pub fn rook_move_mask(bit: u64) -> u64 {
+pub fn rook_move_mask(bit: u64, own_pieces: u64, enemy_pieces: u64) -> u64 {
+
     let (r, f) = get_bit_rf(bit);
-    ((RANK_1 << 8 * r) | (FILE_A << f)) & !bit
+
+    let hori_ray: u64 = block_ray(bit, RANK_1 << 8 * r, own_pieces, enemy_pieces);
+    let vert_ray: u64 = block_ray(bit, FILE_A << f, own_pieces, enemy_pieces);
+
+    (hori_ray | vert_ray) & !bit 
+
+    // ((RANK_1 << 8 * r) | (FILE_A << f)) & !bit
 }
 
-pub fn queen_move_mask(bit: u64) -> u64 {
-    rook_move_mask(bit) | bishop_move_mask(bit)
+pub fn queen_move_mask(bit: u64, own_pieces: u64, enemy_pieces: u64) -> u64 {
+    rook_move_mask(bit, own_pieces, enemy_pieces) | bishop_move_mask(bit, own_pieces, enemy_pieces)
 }
 
-pub fn king_move_mask(bit: u64) -> u64 {
+pub fn block_ray(bit: u64, ray: u64, own_pieces: u64, enemy_pieces: u64) -> u64 {
+
+    let forward: u64 = fill_from(bit);
+    let backward: u64 = fill_to(bit);
+
+    let forward_ray: u64 = ray & forward;
+    let backward_ray: u64 = ray & backward;
+
+    let own_forward_blocker: u64 = fill_from(get_lsb((own_pieces & !bit) & forward & forward_ray));
+    let own_backward_blocker: u64 = fill_to(get_msb((own_pieces & !bit) & backward & backward_ray));
+
+    let enemy_forward_blocker: u64 = fill_from(get_lsb(enemy_pieces & forward & forward_ray)) << 1;
+    let enemy_backward_blocker: u64 = fill_to(get_msb(enemy_pieces & backward & backward_ray)) >> 1;
+
+    (forward_ray & !(enemy_forward_blocker | own_forward_blocker)) | (backward_ray & !(enemy_backward_blocker | own_backward_blocker))
+}
+
+pub fn king_move_mask(bit: u64, own_pieces: u64) -> u64 {
 
     let row: u64 = sl(bit) | sr(bit) | bit;
-    row | su(row) | sd(row) & !bit
+    (row | su(row) | sd(row) & !bit) & !own_pieces
 }
