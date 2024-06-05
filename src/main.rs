@@ -59,6 +59,8 @@ fn main() -> Result<(), Box<dyn Error>>{
             disable_raw_mode()?;
             println!();
             return Ok(())
+        } else {
+            let board = board.parse_input()?;
         }
 
         input.clear();

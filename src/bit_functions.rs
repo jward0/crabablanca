@@ -19,6 +19,27 @@ pub fn get_msb(bits: u64) -> u64 {
     1 << 63 - bits.leading_zeros() as u64
 }
 
+pub fn count_bits(bits: u64) -> u8 {
+    iterate_over(bits).len() as u8
+}
+
+pub fn get_rank_or_file(c: char) -> u64 {
+
+    if ['1', '2', '3', '4', '5', '6', '7', '8'].contains(&c) {
+
+        let rank = c.to_digit(10)?;
+        return RANK_1 << rank - 1;
+
+    } else if ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].contains(&c){
+
+        let file = c.to_ascii_lowercase() as u32 - 61;
+        return FILE_A << file - 1;
+
+    } else {
+        return 0;
+    }
+}
+
 pub fn bidirectional_shift(bits: u64, shift: u64, direction: u8) -> u64 {
     // direction is 1 for white move, 0 for black move
     if direction == 1 {
@@ -71,6 +92,10 @@ pub fn bit_to_coord(bit: u64) -> (u16, u16) {
     assert_ne!(bit, 0);
     let pos = bit.trailing_zeros() as u16;
     (pos % 8, pos / 8)
+}
+
+pub fn coord_to_bit(coords: (u16, u16)) -> u64 {
+    (1 << coords.0) << 8*coords.1
 }
 
 pub fn move_piece(bits: u64, from: u64, to: u64) -> u64 {
