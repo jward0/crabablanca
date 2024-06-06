@@ -2,7 +2,7 @@ use std::num::NonZeroI128;
 
 use tokio::runtime::EnterGuard;
 
-use crate::bit_functions::{bidirectional_shift, bishop_move_mask, get_rank_or_file, coord_to_bit, count_bits, get_lsb, get_msb, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
+use crate::bit_functions::{bidirectional_shift, bishop_move_mask, coord_to_bit, count_bits, get_bit_rf, get_lsb, get_msb, get_rank_or_file, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
 use crate::constants::*;
 
 #[derive(Clone, Debug)]
@@ -92,10 +92,7 @@ impl Board {
         }
     }
 
-    fn reverse_move_mask(self, piece_type: char, to_move: u8, to: u64) -> u64 {
-
-        // Never used for pawns, do not use for pawns
-        assert_ne!(piece_type, 'p');
+    fn reverse_move_mask(&self, piece_type: char, to_move: u8, to: u64) -> u64 {
 
         let possible_pieces: u64 = self.get_pieces(piece_type, to_move);
         let own_pieces: u64;
@@ -106,11 +103,47 @@ impl Board {
             enemy_pieces = self.all_black;
         } else {
             own_pieces = self.all_black;
-            enemy_pieces = self.all_black;
+            enemy_pieces = self.all_white;
+        }
+
+        if piece_type == 'p' {
+            if to & enemy_pieces != 0 {
+                // Diagonal capture (achieved by pawn capture mask colour flipped)
+                return pawn_capture_mask(to, to_move ^ 1)
+            } else {
+                if to_move == 1 && get_bit_rf(to).0 == 3 {
+                    // Possible double move
+                    let mask: u64 = (to >> 8) | (to >> 16);
+                    // Check for stacked pawns
+                    if count_bits(mask & possible_pieces) == 2 {
+                        return to >> 8;
+                    }
+                    
+                    return mask;
+
+                } else if to_move == 0 && get_bit_rf(to).0 == 4 {
+                    // Possible double move
+                    let mask: u64 = (to << 8) | (to << 16);
+                    if count_bits(mask & possible_pieces) == 2 {
+                        return to >> 8;
+                    }
+                    // Possible double move
+                    return mask;
+                }
+                else {
+                    if to_move == 1 {
+                        return to >> 8;
+                    } else {
+                        return to << 8;
+                    }
+                }
+            }
         }
 
         // own and enemy pieces are flipped since we want to know where they could've come from
         // rather than where they could go
+
+        println!("{}", piece_type);
         match piece_type {
             'n' => knight_move_mask(to, enemy_pieces),
             'b' => bishop_move_mask(to, enemy_pieces, own_pieces),
@@ -121,24 +154,29 @@ impl Board {
         }
     }
 
-    fn parse_input(&self, input: &String) -> Option<Board> {
+    pub fn parse_input(&self, input: &String) -> Option<Board> {
+
+        println!("{}", input);
 
         if !input.is_ascii() {
+            println!("1");
             return None
         }
 
         let inlen = input.len();
 
-        let target: String = input.drain(inlen-2..).collect();
-        let rank: u16 = target.chars().collect::<Vec<char>>()[1].to_digit(10)? as u16;
-        let file: u16 = target.chars().collect::<Vec<char>>()[0].to_ascii_lowercase() as u16 - 61;
+        let target: String = input.clone().drain(inlen-2..).collect();
+        println!("{:?}", target.chars().collect::<Vec<char>>());
+        let rank: u16 = target.chars().collect::<Vec<char>>()[1].to_digit(10)? as u16 - 1;
+        let file: u16 = target.chars().collect::<Vec<char>>()[0].to_ascii_lowercase() as u16 - 97;
 
         if !(0..8).contains(&rank) || !(0..8).contains(&file) {
+            println!("{}, {}", &rank, &file);
+            println!("2");
             return None;
         }
 
         let piece_type: char;
-        let disambiguation: u64;
 
         let is_capture: bool = input.chars().collect::<Vec<char>>().contains(&'x');
 
@@ -146,6 +184,7 @@ impl Board {
         if inlen > 2 {
             piece_type = input.chars().collect::<Vec<char>>()[0].to_ascii_lowercase();
             if !['b', 'n', 'r', 'q', 'k'].contains(&piece_type) {
+                println!("3");
                 return None
             }
         } else {
@@ -175,51 +214,19 @@ impl Board {
             if dbg1 == 0 || dbg2 == 0 {return None}
 
             disambiguation = dbg1 | dbg2;
+        } else {
+            disambiguation = u64::MAX;
         }
 
-        let available_pieces: u64 = self.get_pieces(piece_type, self.to_move);
+        let available_pieces: u64 = self.get_pieces(piece_type, self.to_move) & disambiguation;
 
         let to: u64 = coord_to_bit((rank, file));
-        let from: u64;
-
-        match inlen {
-            
-            2 => {
-                // Unambigious pawn move
-                let available_pawns: u64;
-                if self.to_move == 1 {
-                    available_pawns = (FILE_A << file) &  self.white_pawns;
-                    from = get_msb(available_pawns);
-                } else {
-                    available_pawns = (FILE_A << file) &  self.black_pawns;
-                    from = get_lsb(available_pawns);
-                }
-            },
-            3 => {
-                // Unambigious piece move
-                from = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces;
-            },
-            4 => {
-                // Unambiguous capture or ambiguous move
-                if is_capture {
-                    from = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces;
-                } else {
-
-                }
-            },
-            5 => {
-                // Ambiguous capture or double ambiguous move
-                if is_capture {
-
-                } else {
-
-                }
-            },
-            6 => {
-                // Double ambiguous capture
-            },
-            _ => return None
-        }
+        let from: u64 = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces & disambiguation;
+        
+        println!("{}", rank);
+        println!("{}", file);
+        println!("{}", to);
+        println!("{}", from);
 
         if from == 0 {
             return None;

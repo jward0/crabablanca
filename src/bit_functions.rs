@@ -27,7 +27,7 @@ pub fn get_rank_or_file(c: char) -> u64 {
 
     if ['1', '2', '3', '4', '5', '6', '7', '8'].contains(&c) {
 
-        let rank = c.to_digit(10)?;
+        let rank = c.to_digit(10).expect("euuugh");
         return RANK_1 << rank - 1;
 
     } else if ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].contains(&c){
@@ -95,7 +95,7 @@ pub fn bit_to_coord(bit: u64) -> (u16, u16) {
 }
 
 pub fn coord_to_bit(coords: (u16, u16)) -> u64 {
-    (1 << coords.0) << 8*coords.1
+    (1 << coords.1) << 8*coords.0
 }
 
 pub fn move_piece(bits: u64, from: u64, to: u64) -> u64 {

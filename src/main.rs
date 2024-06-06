@@ -11,22 +11,25 @@ use crossterm::terminal::{self, Clear, ClearType, disable_raw_mode, enable_raw_m
 
 fn main() -> Result<(), Box<dyn Error>>{
 
-    let board: Board = Board::new(); 
+    let mut board: Board = Board::new(); 
 
     let mut renderer = Renderer::new()?;
 
-    renderer.parse_board(&board)?;
+    // renderer.parse_board(&board)?;
 
+    /*
     let move_list = board.generate_move_list();
 
     for move_ in move_list {
         renderer.parse_board(&move_)?;
         std::thread::sleep(std::time::Duration::from_secs(1))
     }
+    */
 
     enable_raw_mode()?;
 
     loop {
+        renderer.parse_board(&board)?;
         let mut input = String::new();
         // Capture input
         loop {
@@ -60,7 +63,18 @@ fn main() -> Result<(), Box<dyn Error>>{
             println!();
             return Ok(())
         } else {
-            let board = board.parse_input()?;
+            let boardop = board.parse_input(&input);
+            match boardop {
+                Some(b) => board = b,
+                None => {
+                    println!("Invalid or ambiguous command");
+                    execute!(
+                        io::stdout(),
+                        cursor::MoveToColumn(0),
+                        Clear(ClearType::CurrentLine)
+                    )?;
+                }
+            }
         }
 
         input.clear();
