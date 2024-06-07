@@ -31,6 +31,23 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     loop {
         renderer.parse_board(&board)?;
+        if board.white_checkmate {
+            println!("Checkmate - black wins");
+            execute!(
+                io::stdout(),
+                cursor::MoveToColumn(0),
+                Clear(ClearType::CurrentLine)
+            )?;
+            break;
+        } else if board.black_checkmate {
+            println!("Checkmate - white wins");
+            execute!(
+                io::stdout(),
+                cursor::MoveToColumn(0),
+                Clear(ClearType::CurrentLine)
+            )?;
+            break;
+        }
         let mut input = String::new();
         // Capture input
         loop {
@@ -81,5 +98,6 @@ fn main() -> Result<(), Box<dyn Error>>{
         input.clear();
         
     }
+    Ok(())
 }
 

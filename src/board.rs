@@ -4,62 +4,74 @@ use crate::constants::*;
 #[derive(Clone, Debug)]
 pub struct Board {
 
-    pub white_pawns:   u64,
-    pub white_knights: u64,
-    pub white_bishops: u64,
-    pub white_rooks:   u64,
-    pub white_queens:  u64,
-    pub white_king:    u64,
+    pub white_pawns:     u64,
+    pub white_knights:   u64,
+    pub white_bishops:   u64,
+    pub white_rooks:     u64,
+    pub white_queens:    u64,
+    pub white_king:      u64,
 
-    pub black_pawns:   u64,
-    pub black_knights: u64,
-    pub black_bishops: u64,
-    pub black_rooks:   u64,
-    pub black_queens:  u64,
-    pub black_king:    u64,
+    pub black_pawns:     u64,
+    pub black_knights:   u64,
+    pub black_bishops:   u64,
+    pub black_rooks:     u64,
+    pub black_queens:    u64,
+    pub black_king:      u64,
 
-    pub all_white:     u64,
-    pub all_black:     u64,
-    pub all_pieces:    u64,
+    pub all_white:       u64,
+    pub all_black:       u64,
+    pub all_pieces:      u64,
 
-    pub to_move:       u8 // 1 for white to move, 0 for black to move
+    pub white_check:     bool,
+    pub black_check:     bool,
+
+    pub white_checkmate: bool,
+    pub black_checkmate: bool,
+
+    pub to_move:         u8 // 1 for white to move, 0 for black to move
 
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
-            // white_pawns:   0x000000000000FF00,
-            white_pawns:   0x0000000000000000,
-            white_knights: 0x0000000000000042,
-            white_bishops: 0x0000000000000024,
-            white_rooks:   0x0000000000000081,
-            white_queens:  0x0000000000000008,
-            white_king:    0x0000000000000010,
+            // white_pawns:     0x000000000000FF00,
+            white_pawns:     0x0000000000000000,
+            white_knights:   0x0000000000000042,
+            white_bishops:   0x0000000000000024,
+            white_rooks:     0x0000000000000081,
+            white_queens:    0x0000000000000008,
+            white_king:      0x0000000000000010,
         
-            // black_pawns:   0x00FF000000000000,
-            black_pawns:   0x0000000000000000,
-            black_knights: 0x4200000000000000,
-            black_bishops: 0x2400000000000000,
-            black_rooks:   0x8100000000000000,
-            black_queens:  0x0800000000000000,
-            black_king:    0x1000000000000000,
+            // black_pawns:     0x00FF000000000000,
+            black_pawns:     0x0000000000000000,
+            black_knights:   0x4200000000000000,
+            black_bishops:   0x2400000000000000,
+            black_rooks:     0x8100000000000000,
+            black_queens:    0x0800000000000000,
+            black_king:      0x1000000000000000,
 
-            // all_white:     0x000000000000FFFF,
-            // all_black:     0xFFFF000000000000,
-            // all_pieces:    0xFFFF00000000FFFF,
+            // all_white:       0x000000000000FFFF,
+            // all_black:       0xFFFF000000000000,
+            // all_pieces:      0xFFFF00000000FFFF,
 
-            all_white:     0x00000000000000FF,
-            all_black:     0xFF00000000000000,
-            all_pieces:    0xFF000000000000FF,
+            all_white:       0x00000000000000FF,
+            all_black:       0xFF00000000000000,
+            all_pieces:      0xFF000000000000FF,
 
-            to_move:       1
+            to_move:         1,
+
+            white_check:     false,
+            black_check:     false,
+
+            white_checkmate: false,
+            black_checkmate: false
         }
     }
 
     fn apply_move(&self, from: u64, to: u64) -> Option<Board> {
         
-        let new_board: Board = Board {
+        let ib: Board = Board {
             white_pawns:   move_piece(self.white_pawns, from, to),
             white_knights: move_piece(self.white_knights, from, to),
             white_bishops: move_piece(self.white_bishops, from, to),
@@ -75,13 +87,44 @@ impl Board {
             all_white:     move_piece(self.all_white, from, to),
             all_black:     move_piece(self.all_black, from, to),
             all_pieces:    move_piece(self.all_pieces, from, to),
-            to_move: self.to_move ^ 1
+            to_move:       self.to_move ^ 1,
+            white_check:     false,
+            black_check:     false,
+
+            white_checkmate: false,
+            black_checkmate: false
         };
         
-        let checks: (bool, bool) = self.check_check(&new_board);
+        let checks: (bool, bool) = self.check_check(&ib);
+
+        // Check for illegally moving into check
         if (self.to_move == 1 && checks.0) || (self.to_move == 0 && checks.1) {
             return None
         }
+
+        let mut wc: bool = false;
+        let mut bc: bool = false;
+
+        // Check for checkmates
+        if (self.to_move == 1 && checks.1) || (self.to_move == 0 && checks.0) {
+            if ib.generate_move_list().len() == 0 {
+                if self.to_move == 1 {
+                    bc = true;
+                } else {
+                    wc = true;
+                }
+            } 
+        }
+
+        let new_board: Board = Board {
+            white_check:     checks.0,
+            black_check:     checks.1,
+
+            white_checkmate: wc,
+            black_checkmate: bc,
+            ..ib
+        };
+
         Some(new_board)
     }
 
