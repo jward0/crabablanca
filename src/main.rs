@@ -6,8 +6,8 @@ use crabablanca::board::Board;
 use crabablanca::renderer::Renderer;
 
 use crossterm::{execute, cursor};
-use crossterm::event::{self, read, poll, Event, KeyCode};
-use crossterm::terminal::{self, Clear, ClearType, disable_raw_mode, enable_raw_mode};
+use crossterm::event::{read, Event, KeyCode};
+use crossterm::terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode};
 
 fn main() -> Result<(), Box<dyn Error>>{
 
@@ -17,10 +17,10 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     // renderer.parse_board(&board)?;
 
-    
+    /*
     let move_list = board.generate_move_list();
 
-    /*
+    
     for move_ in move_list {
         renderer.parse_board(&move_)?;
         std::thread::sleep(std::time::Duration::from_secs(1))
@@ -81,30 +81,5 @@ fn main() -> Result<(), Box<dyn Error>>{
         input.clear();
         
     }
-
-    // std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // renderer.write_to_square((2, 3), 'p', 'b')?;
-
-    // while !poll(Duration::from_millis(100))? {
-        
-    // }
-
-    // println!("{:?}", read()?);
-
-    // // std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // renderer.write_to_square((2, 3), 'n', 'b')?;
-
-    // // std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // renderer.write_to_square((2, 3), 'n', 'w')?;
-
-    // // std::thread::sleep(std::time::Duration::from_secs(3));
-
-    // renderer.clear_square((2, 3))?;
-
-    Ok(())
-
 }
 

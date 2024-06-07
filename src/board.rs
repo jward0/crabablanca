@@ -1,8 +1,4 @@
-use std::num::NonZeroI128;
-
-use tokio::runtime::EnterGuard;
-
-use crate::bit_functions::{bidirectional_shift, bishop_move_mask, coord_to_bit, count_bits, get_bit_rf, get_lsb, get_msb, get_rank_or_file, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
+use crate::bit_functions::{bidirectional_shift, bishop_move_mask, coord_to_bit, count_bits, get_bit_rf, get_rank_or_file, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
 use crate::constants::*;
 
 #[derive(Clone, Debug)]
@@ -87,10 +83,6 @@ impl Board {
             return None
         }
         Some(new_board)
-    }
-
-    fn is_legal_position(&self) -> bool {
-        true
     }
 
     fn check_check(&self, board: &Board) -> (bool, bool) {
