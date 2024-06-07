@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>>{
             Clear(ClearType::CurrentLine)
         )?;
 
-        if input == "exit" {
+        if input == "exit" || input == "quit" {
             disable_raw_mode()?;
             println!();
             return Ok(())

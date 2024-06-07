@@ -28,11 +28,11 @@ pub fn get_rank_or_file(c: char) -> u64 {
     if ['1', '2', '3', '4', '5', '6', '7', '8'].contains(&c) {
 
         let rank = c.to_digit(10).expect("euuugh");
-        return RANK_1 << rank - 1;
+        return RANK_1 << 8*(rank - 1);
 
     } else if ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].contains(&c){
 
-        let file = c.to_ascii_lowercase() as u32 - 61;
+        let file = c.to_ascii_lowercase() as u32 - 96;
         return FILE_A << file - 1;
 
     } else {

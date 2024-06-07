@@ -72,7 +72,8 @@ impl Board {
             all_white:     move_piece(self.all_white, from, to),
             all_black:     move_piece(self.all_black, from, to),
             all_pieces:    move_piece(self.all_pieces, from, to),
-            to_move: self.to_move ^ 1
+            // to_move: self.to_move ^ 1
+            to_move: 1
         }
     }
 
@@ -104,6 +105,10 @@ impl Board {
         } else {
             own_pieces = self.all_black;
             enemy_pieces = self.all_white;
+        }
+
+        if to & own_pieces != 0 {
+            return 0;
         }
 
         if piece_type == 'p' {
@@ -142,8 +147,6 @@ impl Board {
 
         // own and enemy pieces are flipped since we want to know where they could've come from
         // rather than where they could go
-
-        println!("{}", piece_type);
         match piece_type {
             'n' => knight_move_mask(to, enemy_pieces),
             'b' => bishop_move_mask(to, enemy_pieces, own_pieces),
@@ -156,51 +159,48 @@ impl Board {
 
     pub fn parse_input(&self, input: &String) -> Option<Board> {
 
-        println!("{}", input);
-
         if !input.is_ascii() {
-            println!("1");
             return None
         }
 
         let inlen = input.len();
 
         let target: String = input.clone().drain(inlen-2..).collect();
-        println!("{:?}", target.chars().collect::<Vec<char>>());
         let rank: u16 = target.chars().collect::<Vec<char>>()[1].to_digit(10)? as u16 - 1;
         let file: u16 = target.chars().collect::<Vec<char>>()[0].to_ascii_lowercase() as u16 - 97;
 
         if !(0..8).contains(&rank) || !(0..8).contains(&file) {
-            println!("{}, {}", &rank, &file);
-            println!("2");
             return None;
         }
-
-        let piece_type: char;
 
         let is_capture: bool = input.chars().collect::<Vec<char>>().contains(&'x');
 
         // Get piece type
-        if inlen > 2 {
-            piece_type = input.chars().collect::<Vec<char>>()[0].to_ascii_lowercase();
-            if !['b', 'n', 'r', 'q', 'k'].contains(&piece_type) {
-                println!("3");
-                return None
-            }
-        } else {
+
+        let first_char: char = input.chars().collect::<Vec<char>>()[0];
+        let piece_type: char;
+
+        if ['B', 'N', 'R', 'Q', 'K'].contains(&first_char) {
+            piece_type = first_char.to_ascii_lowercase();
+        } else if ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].contains(&first_char) {
             piece_type = 'p';
+        } else {
+            return None;
         }
 
         // Get possible disambiguation information
 
         let disambiguation: u64;
+        if piece_type == 'p' && is_capture {
 
-        if (inlen == 4 && !is_capture) || (inlen == 5 && is_capture) {
+            let disambig_char = first_char;
+            disambiguation = get_rank_or_file(disambig_char);
+            if disambiguation == 0 {return None}
+
+        } else if (inlen == 4 && !is_capture) || (inlen == 5 && is_capture) {
 
             let disambig_char = input.chars().collect::<Vec<char>>()[1];
-
             disambiguation = get_rank_or_file(disambig_char);
-
             if disambiguation == 0 {return None}
 
         } else if (inlen == 5 && !is_capture) || (inlen == 6 && is_capture) {
@@ -222,11 +222,6 @@ impl Board {
 
         let to: u64 = coord_to_bit((rank, file));
         let from: u64 = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces & disambiguation;
-        
-        println!("{}", rank);
-        println!("{}", file);
-        println!("{}", to);
-        println!("{}", from);
 
         if from == 0 {
             return None;
