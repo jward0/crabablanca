@@ -33,30 +33,37 @@ pub struct Board {
 impl Board {
     pub fn new() -> Board {
         Board {
-            white_pawns:   0x000000000000FF00,
+            // white_pawns:   0x000000000000FF00,
+            white_pawns:   0x0000000000000000,
             white_knights: 0x0000000000000042,
             white_bishops: 0x0000000000000024,
             white_rooks:   0x0000000000000081,
             white_queens:  0x0000000000000008,
             white_king:    0x0000000000000010,
         
-            black_pawns:   0x00FF000000000000,
+            // black_pawns:   0x00FF000000000000,
+            black_pawns:   0x0000000000000000,
             black_knights: 0x4200000000000000,
             black_bishops: 0x2400000000000000,
             black_rooks:   0x8100000000000000,
             black_queens:  0x0800000000000000,
             black_king:    0x1000000000000000,
 
-            all_white:     0x000000000000FFFF,
-            all_black:     0xFFFF000000000000,
-            all_pieces:    0xFFFF00000000FFFF,
+            // all_white:     0x000000000000FFFF,
+            // all_black:     0xFFFF000000000000,
+            // all_pieces:    0xFFFF00000000FFFF,
+
+            all_white:     0x00000000000000FF,
+            all_black:     0xFF00000000000000,
+            all_pieces:    0xFF000000000000FF,
 
             to_move:       1
         }
     }
 
-    fn apply_move(&self, from: u64, to: u64) -> Board {
-        Board {
+    fn apply_move(&self, from: u64, to: u64) -> Option<Board> {
+        
+        let new_board: Board = Board {
             white_pawns:   move_piece(self.white_pawns, from, to),
             white_knights: move_piece(self.white_knights, from, to),
             white_bishops: move_piece(self.white_bishops, from, to),
@@ -72,13 +79,34 @@ impl Board {
             all_white:     move_piece(self.all_white, from, to),
             all_black:     move_piece(self.all_black, from, to),
             all_pieces:    move_piece(self.all_pieces, from, to),
-            // to_move: self.to_move ^ 1
-            to_move: 1
+            to_move: self.to_move ^ 1
+        };
+        
+        let checks: (bool, bool) = self.check_check(&new_board);
+        if (self.to_move == 1 && checks.0) || (self.to_move == 0 && checks.1) {
+            return None
         }
+        Some(new_board)
     }
 
     fn is_legal_position(&self) -> bool {
         true
+    }
+
+    fn check_check(&self, board: &Board) -> (bool, bool) {
+        let white_to_move: u8 = 1;
+        let black_to_move: u8 = 0;
+
+        let mut white_checks: u64 = 0;
+        let mut black_checks: u64 = 0;
+
+        for piece_type in ['p', 'n', 'b', 'r', 'q'] {
+
+            white_checks += board.reverse_move_mask(piece_type, black_to_move, board.white_king) & board.get_pieces(piece_type, black_to_move);
+            black_checks += board.reverse_move_mask(piece_type, white_to_move, board.black_king) & board.get_pieces(piece_type, white_to_move);
+        }
+
+        (white_checks != 0, black_checks !=0)
     }
 
     fn get_pieces(&self, piece_type: char, to_move: u8) -> u64 {
@@ -229,44 +257,26 @@ impl Board {
             return None;
         } 
 
-        Some(self.apply_move(from, to))
+        self.apply_move(from, to)
     }
 
     pub fn generate_move_list(&self) -> Vec<Board> {
 
-        let pawns: Vec<u64>;
         let pawn_start_row: u64;
         let pawn_promote_row: u64;
-        let knights: Vec<u64>;
-        let bishops: Vec<u64>;
-        let rooks: Vec<u64>;
-        let queens: Vec<u64>;
-        let king: u64;
         let own_pieces: u64;
         let enemy_pieces: u64;
 
         if self.to_move == 1 {
             // White to move
-            pawns = iterate_over(self.white_pawns);
             pawn_start_row = RANK_2;
             pawn_promote_row = RANK_8;
-            knights = iterate_over(self.white_knights);
-            bishops = iterate_over(self.white_bishops);
-            rooks = iterate_over(self.white_rooks);
-            queens = iterate_over(self.white_queens);
-            king = self.white_king;
             own_pieces = self.all_white;
             enemy_pieces = self.all_black;
         } else {
             // Black to move
-            pawns = iterate_over(self.black_pawns);
             pawn_start_row = RANK_7;
             pawn_promote_row = RANK_1;
-            knights = iterate_over(self.black_knights);
-            bishops = iterate_over(self.black_bishops);
-            rooks = iterate_over(self.black_rooks);
-            queens = iterate_over(self.black_queens);
-            king = self.black_king;
             own_pieces = self.all_black;
             enemy_pieces = self.all_white;
         }
@@ -277,13 +287,15 @@ impl Board {
 
         // Moves
 
-        for pawn in pawns.iter() {
+        let pawns: Vec<u64> = iterate_over(self.get_pieces('p', self.to_move));
+
+        for pawn in pawns {
 
             let mut pawn_moves: Vec<u64> = vec![];
 
             // Single moves
 
-            let single_move: u64 = bidirectional_shift(*pawn, 8, self.to_move);
+            let single_move: u64 = bidirectional_shift(pawn, 8, self.to_move);
         
             if (self.all_pieces & single_move) == 0 {
                 // Check for promotion
@@ -295,7 +307,7 @@ impl Board {
             }
             // Double moves
             if (pawn & pawn_start_row) != 0 {
-                let double_move: u64 = bidirectional_shift(*pawn, 16, self.to_move);
+                let double_move: u64 = bidirectional_shift(pawn, 16, self.to_move);
                 if (self.all_pieces & double_move) == 0 {
                     pawn_moves.push(double_move)
                 }
@@ -303,7 +315,7 @@ impl Board {
 
             // Standard captures
 
-            let capture_mask: u64 = pawn_capture_mask(*pawn, self.to_move);
+            let capture_mask: u64 = pawn_capture_mask(pawn, self.to_move);
             for capture in iterate_over(capture_mask).iter() {
                 if (capture & enemy_pieces) != 0 {
                     pawn_moves.push(*capture)
@@ -313,60 +325,35 @@ impl Board {
             // En passant not yet implemented
             
             for pawn_move in pawn_moves.iter() {
-                move_list.push(self.apply_move(*pawn, *pawn_move));
+
+                let new_board = self.apply_move(pawn, *pawn_move);
+                match new_board {
+                    Some(board) => move_list.push(board),
+                    None => {}
+                }
             }
 
         }
 
-        // Generate knight moves
-
-        for knight in knights.iter() {
-
-            let move_mask: u64 = knight_move_mask(*knight, own_pieces);
-            for move_ in iterate_over(move_mask).iter() {
-                move_list.push(self.apply_move(*knight, *move_));
+        for piece_type in ['n', 'b', 'r', 'q', 'k'] {
+            let pieces: Vec<u64> = iterate_over(self.get_pieces(piece_type, self.to_move));
+            for piece in pieces {
+                let move_mask = match piece_type {
+                    'n' => knight_move_mask(piece, own_pieces),
+                    'b' => bishop_move_mask(piece, own_pieces, enemy_pieces),
+                    'r' => rook_move_mask(piece, own_pieces, enemy_pieces),
+                    'q' => queen_move_mask(piece, own_pieces, enemy_pieces),
+                    'k' => king_move_mask(piece, own_pieces),
+                    _ => unreachable!()
+                };
+                for move_ in iterate_over(move_mask).iter() {
+                    let new_board = self.apply_move(piece, *move_);
+                    match new_board {
+                        Some(board) => move_list.push(board),
+                        None => {}
+                    }
+                }
             }
-        }
-
-        // Generate bishop moves
-
-        for bishop in bishops.iter() {
-
-            let move_mask: u64 = bishop_move_mask(*bishop, own_pieces, enemy_pieces);
-
-            for move_ in iterate_over(move_mask).iter() {
-                move_list.push(self.apply_move(*bishop, *move_));
-            }
-        }
-
-        // Generate rook moves
-
-        for rook in rooks.iter() {
-
-            let move_mask: u64 = rook_move_mask(*rook, own_pieces, enemy_pieces);
-
-            for move_ in iterate_over(move_mask).iter() {
-                move_list.push(self.apply_move(*rook, *move_));
-            }
-        }
-
-        // Generate queen moves
-
-        for queen in queens.iter() {
-
-            let move_mask: u64 = queen_move_mask(*queen, own_pieces, enemy_pieces);
-
-            for move_ in iterate_over(move_mask).iter() {
-                move_list.push(self.apply_move(*queen, *move_));
-            }
-        }
-
-        // Generate king moves 
-
-        let move_mask: u64 = king_move_mask(king, own_pieces);
-
-        for move_ in iterate_over(move_mask).iter() {
-            move_list.push(self.apply_move(king, *move_));
         }
 
         // Generate castling moves
