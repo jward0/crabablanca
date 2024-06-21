@@ -29,6 +29,7 @@ pub struct Board {
     pub black_checkmate: bool,
 
     pub to_move:         u8 // 1 for white to move, 0 for black to move
+    // I appreciate this is a silly way round but just live with it for now
 
 }
 
@@ -95,40 +96,43 @@ impl Board {
             black_checkmate: false
         };
         
-        let checks: (bool, bool) = self.check_check(&ib);
+        let (wc, bc): (bool, bool) = ib.check_check();
 
         // Check for illegally moving into check
-        if (self.to_move == 1 && checks.0) || (self.to_move == 0 && checks.1) {
+        if (self.to_move == 1 && wc) || (self.to_move == 0 && bc) {
             return None
         }
 
-        let mut wc: bool = false;
-        let mut bc: bool = false;
+        // Check checkmates
+        let (wcm, bcm) = ib.check_checkmate((wc, bc));
 
-        // Check for checkmates
-        if (self.to_move == 1 && checks.1) || (self.to_move == 0 && checks.0) {
-            if ib.generate_move_list().len() == 0 {
-                if self.to_move == 1 {
-                    bc = true;
-                } else {
-                    wc = true;
-                }
-            } 
-        }
+        // let mut wc: bool = false;
+        // let mut bc: bool = false;
+
+        // // Check for checkmates
+        // if (self.to_move == 1 && checks.1) || (self.to_move == 0 && checks.0) {
+        //     if ib.generate_move_list().len() == 0 {
+        //         if self.to_move == 1 {
+        //             bc = true;
+        //         } else {
+        //             wc = true;
+        //         }
+        //     } 
+        // }
 
         let new_board: Board = Board {
-            white_check:     checks.0,
-            black_check:     checks.1,
+            white_check:     wc,
+            black_check:     bc,
 
-            white_checkmate: wc,
-            black_checkmate: bc,
+            white_checkmate: wcm,
+            black_checkmate: bcm,
             ..ib
         };
 
         Some(new_board)
     }
 
-    fn check_check(&self, board: &Board) -> (bool, bool) {
+    pub fn check_check(&self) -> (bool, bool) {
         let white_to_move: u8 = 1;
         let black_to_move: u8 = 0;
 
@@ -137,11 +141,29 @@ impl Board {
 
         for piece_type in ['p', 'n', 'b', 'r', 'q'] {
 
-            white_checks += board.reverse_move_mask(piece_type, black_to_move, board.white_king) & board.get_pieces(piece_type, black_to_move);
-            black_checks += board.reverse_move_mask(piece_type, white_to_move, board.black_king) & board.get_pieces(piece_type, white_to_move);
+            white_checks += self.reverse_move_mask(piece_type, black_to_move, self.white_king) & self.get_pieces(piece_type, black_to_move);
+            black_checks += self.reverse_move_mask(piece_type, white_to_move, self.black_king) & self.get_pieces(piece_type, white_to_move);
         }
 
         (white_checks != 0, black_checks !=0)
+    }
+
+    pub fn check_checkmate(&self, checks: (bool, bool)) -> (bool, bool) {
+        
+        let mut wcm: bool = false;
+        let mut bcm: bool = false;
+
+        if (self.to_move == 0 && checks.1) || (self.to_move == 1 && checks.0) {
+            if self.generate_move_list().len() == 0 {
+                if self.to_move == 0 {
+                    bcm = true;
+                } else {
+                    wcm = true;
+                }
+            } 
+        }
+
+        (wcm, bcm)
     }
 
     fn get_pieces(&self, piece_type: char, to_move: u8) -> u64 {
