@@ -106,20 +106,6 @@ impl Board {
         // Check checkmates
         let (wcm, bcm) = ib.check_checkmate((wc, bc));
 
-        // let mut wc: bool = false;
-        // let mut bc: bool = false;
-
-        // // Check for checkmates
-        // if (self.to_move == 1 && checks.1) || (self.to_move == 0 && checks.0) {
-        //     if ib.generate_move_list().len() == 0 {
-        //         if self.to_move == 1 {
-        //             bc = true;
-        //         } else {
-        //             wc = true;
-        //         }
-        //     } 
-        // }
-
         let new_board: Board = Board {
             white_check:     wc,
             black_check:     bc,
