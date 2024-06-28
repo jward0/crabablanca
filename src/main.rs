@@ -1,3 +1,4 @@
+use core::time;
 use std::error::Error;
 use std::io::{self, Write};
 use std::time::Duration;
@@ -5,6 +6,8 @@ use std::env;
 
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
+
+use std::collections::HashMap;
 
 use crabablanca::board::Board;
 use crabablanca::renderer::Renderer;
@@ -22,23 +25,18 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     let mut renderer = Renderer::new()?;
 
-    let player_colour: u8 = 1; // 1 for white, 0 for black
+    let player_colour: u8 = 2; // 1 for white, 0 for black
+    let depth: usize = 4;
 
     enable_raw_mode()?;
 
     loop {
+
+        let search_node = Rc::new(RefCell::new(Node::new(&board)));
         
         renderer.parse_board(&board)?;
 
-        let search_node = Rc::new(RefCell::new(Node::new(&board)));
-
-        // The issue is that search_node gets borrowed while iterating over children
-        // Which then means that it cannot be mutably borrowed when trying to propagate values into it
-        // There'll be an elegant way to do this, I just need to work out what
-        Node::search_next_ply(&search_node);
-        // for child in search_node.borrow().children.iter() {
-        //     Node::search_next_ply(child);
-        // }
+        Node::search_n_plys(&search_node, depth);
         
         println!("{}, {}", search_node.borrow().static_eval, search_node.borrow().deep_eval);
         execute!(

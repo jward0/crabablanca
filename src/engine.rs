@@ -37,9 +37,6 @@ fn evaluate(board: &Board) -> f64 {
     return material_advantage
 } 
 
-struct TranspositionTable {
-
-}
 
 pub struct Node {
     pub depth: usize,
@@ -89,67 +86,64 @@ impl Node {
             }
         }
     }
-    
-    /*
-    fn propagate_eval_up(node: &mut Node, deep_eval: f64) {
-        // let node: &mut Node = &mut *node_cell.borrow_mut();
-        node.deep_eval = deep_eval;
-        if let Some(weak_parent) = &node.parent {
-            if let Some(parent) = weak_parent.upgrade() {
-                Node::propagate_eval_up(&mut *parent.borrow_mut(), deep_eval);
-            }
-        }
-    }
 
-    fn propagate_best_next_move_up(node: &mut Node, next_move: &Board) {
-        // let node: &mut Node = &mut *node_cell.borrow_mut();
-        node.best_next_move = Some(next_move.clone());
-        if let Some(weak_parent) = &node.parent {
-            if let Some(parent) = weak_parent.upgrade() {
-                Node::propagate_best_next_move_up(&mut *parent.borrow_mut(), next_move);
-            }
-        }
-    }
+    fn pull_best_up(node_cell: &Rc<RefCell<Node>>) {
 
-    fn propagate_up(node: &mut Node, deep_eval: f64, next_move: &Board) {
-        node.deep_eval = deep_eval;
-        node.best_next_move = Some(next_move.clone());
-        if let Some(weak_parent) = &node.parent {
-            if let Some(parent) = weak_parent.upgrade() {
-                Node::propagate_up(&mut *parent.borrow_mut(), deep_eval, next_move);
-            }
-        }
-    }
-    */
-
-    pub fn search_next_ply(node_cell: &Rc<RefCell<Node>>) {
-
-        let mut best_static_eval: f64;
-        let mut best_board = Board::new();
-
-        {
         let node = &mut *node_cell.borrow_mut();
 
-        best_static_eval = if node.board.to_move == 1 {f64::MIN } else {f64::MAX};
+        if node.children.is_empty() {
+            return
+        }
+
+        let mut best_eval: f64 = if node.board.to_move == 1 {f64::MIN } else {f64::MAX};
+        let mut best_board = Board::new();
+
+        for child in node.children.iter() {
+
+            Node::pull_best_up(child);
+
+            let cb = child.borrow();
+            if node.board.to_move == 1 {
+                if cb.deep_eval > best_eval {
+                    best_eval = cb.deep_eval;
+                    best_board = cb.board.clone();
+                }
+            } else {
+                if node.deep_eval < best_eval {
+                    best_eval = cb.deep_eval;
+                    best_board = cb.board.clone();
+                }
+            }
+        }
+
+        node.deep_eval = best_eval;
+        node.best_next_move = Some(best_board);
+
+    }
+    
+    pub fn search_n_plys(node_cell:&Rc<RefCell<Node>>, n: usize) {
+        
+        for i in 0..n {
+            Node::search_next_ply(node_cell);
+        }
+        Node::pull_best_up(node_cell);
+    }
+
+    fn search_next_ply(node_cell: &Rc<RefCell<Node>>) {
+
+        let node = &mut *node_cell.borrow_mut();
+
+        if !node.children.is_empty() {
+            for child in node.children.iter() {
+                Node::search_next_ply(&child);
+            }
+        }
 
         let move_list: Vec<Board> = node.board.generate_move_list();
         
-        best_board.to_move = node.board.to_move ^ 1;
-
         for board in move_list.iter() {
-            let static_eval = evaluate(&board);
-            if node.board.to_move == 1 {
-                if static_eval > best_static_eval {
-                    best_static_eval = static_eval;
-                    best_board = board.clone();
-                }
-            } else {
-                if static_eval < best_static_eval {
-                    best_static_eval = static_eval;
-                    best_board = board.clone();
-                }
-            }
 
+            let static_eval = evaluate(&board);
             Node::add_child(
                 node,
                 Rc::new(RefCell::new(
@@ -165,22 +159,5 @@ impl Node {
                 ))
             );
         }
-        }
-
-        Node::propagate_eval_up(&node_cell, best_static_eval);
-        Node::propagate_best_next_move_up(&node_cell, &best_board);
-        // Propagate eval up (avoids ownership issues by keeping in-function)
-        // node.deep_eval = best_static_eval;
-        // if let Some(weak_parent) = &node.parent {
-        //     if let Some(parent) = weak_parent.upgrade() {
-        //         Node::propagate_eval_up(parent, best_static_eval);
-        //     }
-        // }
-        // node.best_next_move = Some(best_board.clone());
-        // if let Some(weak_parent) = &node.parent {
-        //     if let Some(parent) = weak_parent.upgrade() {
-        //         Node::propagate_best_next_move_up(parent, &best_board);
-        //     }
-        // }
     }
 }

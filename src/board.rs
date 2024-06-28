@@ -1,7 +1,7 @@
 use crate::bit_functions::{bidirectional_shift, bishop_move_mask, coord_to_bit, count_bits, get_bit_rf, get_rank_or_file, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
 use crate::constants::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Board {
 
     pub white_pawns:     u64,
