@@ -1,7 +1,7 @@
 use crate::bit_functions::{bidirectional_shift, bishop_move_mask, coord_to_bit, count_bits, get_bit_rf, get_rank_or_file, iterate_over, king_move_mask, knight_move_mask, move_piece, pawn_capture_mask, queen_move_mask, rook_move_mask};
 use crate::constants::*;
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Board {
 
     pub white_pawns:     u64,
@@ -119,17 +119,40 @@ impl Board {
     }
 
     pub fn check_check(&self) -> (bool, bool) {
+
         let white_to_move: u8 = 1;
         let black_to_move: u8 = 0;
 
         let mut white_checks: u64 = 0;
         let mut black_checks: u64 = 0;
 
-        for piece_type in ['p', 'n', 'b', 'r', 'q'] {
+        // for piece_type in ['p', 'n', 'b', 'r', 'q'] {
 
-            white_checks += self.reverse_move_mask(piece_type, black_to_move, self.white_king) & self.get_pieces(piece_type, black_to_move);
-            black_checks += self.reverse_move_mask(piece_type, white_to_move, self.black_king) & self.get_pieces(piece_type, white_to_move);
-        }
+        //     white_checks += self.reverse_move_mask(piece_type, black_to_move, self.white_king) & self.get_pieces(piece_type, black_to_move);
+        //     black_checks += self.reverse_move_mask(piece_type, white_to_move, self.black_king) & self.get_pieces(piece_type, white_to_move);
+        // }
+
+        white_checks = pawn_capture_mask(self.white_king, 
+                                         1) & self.black_pawns +
+                       knight_move_mask(self.white_king, 
+                                        self.all_white) & self.black_knights +
+                       bishop_move_mask(self.white_king, 
+                                        self.all_white, 
+                                        self.all_black) & (self.black_bishops | self.black_queens) +
+                       rook_move_mask(self.white_king, 
+                                      self.all_white,
+                                      self.all_black) & (self.black_rooks | self.black_queens); 
+
+        black_checks = pawn_capture_mask(self.black_king, 
+                                         0) & self.white_pawns +
+                      knight_move_mask(self.black_king, 
+                                       self.all_black) & self.white_knights +
+                      bishop_move_mask(self.black_king, 
+                                       self.all_black, 
+                                       self.all_white) & (self.white_bishops | self.white_queens) +
+                      rook_move_mask(self.black_king, 
+                                     self.all_black,
+                                     self.all_white) & (self.white_rooks | self.white_queens); 
 
         (white_checks != 0, black_checks !=0)
     }

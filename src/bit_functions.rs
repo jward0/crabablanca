@@ -20,7 +20,7 @@ pub fn get_msb(bits: u64) -> u64 {
 }
 
 pub fn count_bits(bits: u64) -> u8 {
-    iterate_over(bits).len() as u8
+    bits.count_ones() as u8
 }
 
 pub fn get_rank_or_file(c: char) -> u64 {
