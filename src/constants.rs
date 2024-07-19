@@ -15,3 +15,5 @@ pub const FILE_H: u64 = FILE_A << 7;
 
 pub const MAIN_DIAG: u64 = 0x8040201008040201;
 pub const ANTI_DIAG: u64 = 0x0102040810204080;
+
+pub const CENTRE: u64 = 0x0000001818000000;

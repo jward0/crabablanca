@@ -2,7 +2,8 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 use crate::board::Board;
-use crate::bit_functions::{count_bits};
+use crate::bit_functions::count_bits;
+use crate::constants::*;
 
 fn evaluate(board: &Board) -> f64 {
 
@@ -12,9 +13,9 @@ fn evaluate(board: &Board) -> f64 {
     let checkmates = board.check_checkmate(checks);
 
     if checkmates.0 == true {
-        return f64::MIN
+        return -9999.0
     } else if checkmates.1 == true {
-        return f64::MAX
+        return 9999.0
     }
     
     // Count material balance
@@ -34,7 +35,29 @@ fn evaluate(board: &Board) -> f64 {
 
     let material_advantage: f64 = white_material - black_material;
 
-    return material_advantage
+    // Assess centrality
+    let white_central_pawns: f64 = count_bits(board.white_pawns & CENTRE) as f64;
+    let black_central_pawns: f64 = count_bits(board.black_pawns & CENTRE) as f64;
+
+    let centrality_advantage: f64 = white_central_pawns - black_central_pawns;
+
+    // Encourage attacking play
+    let checks_advantage: f64 = checks.1 as u8 as f64 - checks.0 as u8 as f64;
+
+    // Encourage development
+    let wb: Board = Board {
+        to_move : 1,
+        ..*board
+    };
+    let bb: Board = Board {
+        to_move : 0,
+        ..*board
+    };
+    let white_mobility = wb.generate_move_list().len();
+    let black_mobility = bb.generate_move_list().len();
+    let mobility_advantage: f64 = 0.1 * (white_mobility as f64 - black_mobility as f64);
+
+    return material_advantage + centrality_advantage + checks_advantage + mobility_advantage;
 } 
 
 
@@ -120,22 +143,150 @@ impl Node {
         node.best_next_move = Some(best_board);
 
     }
+
+    pub fn process_node_cell(node_cell: &Rc<RefCell<Node>>, depth: usize) {
+
+        let (deep_eval, next_move) = Node::get_ab_eval(node_cell, depth, 9999.0, -9999.0);
+        let node = &mut *node_cell.borrow_mut();
+        node.deep_eval = deep_eval;
+        node.best_next_move = Some(next_move);
+    }
+
+    pub fn get_ab_eval(node_cell: &Rc<RefCell<Node>>, depth: usize, alpha: f64, beta: f64) -> (f64, Board) {
+
+        let mut local_alpha: f64 = alpha;
+        let mut local_beta: f64 = beta;
+
+        let node = &mut *node_cell.borrow_mut();
+
+        if node.depth == depth {
+            return (node.static_eval, node.board);
+        } else {
+
+            let mut best_eval: f64 = if node.board.to_move == 1 {f64::MIN} else {f64::MAX};
+            let mut best_board: Board = Board::new();
+
+            let move_list: Vec<Board> = node.board.generate_move_list();
+
+            for board in move_list.iter() {
+                let static_eval: f64 = evaluate(&board);
+                // Node::add_child(
+                //     node,
+                //     Rc::new(RefCell::new(
+                //         Node {
+                //             depth: node.depth + 1,
+                //             board: board.clone(),
+                //             static_eval: 0.0,
+                //             deep_eval: 0.0,
+                //             best_next_move: None,
+                //             parent: Some(Rc::downgrade(&node_cell)),
+                //             children: vec![]
+                //         }
+                //     )));
+
+                let tmpcell = Rc::new(RefCell::new(
+                    Node {
+                        depth: node.depth + 1,
+                        board: board.clone(),
+                        static_eval: static_eval,
+                        deep_eval: static_eval,
+                        best_next_move: None,
+                        parent: Some(Rc::downgrade(&node_cell)),
+                        children: vec![]
+                    }
+                ));
+
+                if node.board.to_move == 1 {
+                    // let (move_eval, move_board) = Node::get_ab_eval(node.children.last().unwrap(), depth, f64::MIN, local_beta);
+                    let (move_eval, move_board) = Node::get_ab_eval(&tmpcell, depth, f64::MIN, local_beta);
+                    Node::add_child(node, tmpcell);
+                    if move_eval >= best_eval {
+                        best_eval = move_eval;
+                        best_board = *board;
+                    }
+                    if move_eval > local_beta {
+                        local_beta = move_eval;
+                    }
+                    if move_eval > local_alpha {
+                        break
+                    }
+
+                } else {
+                    // let (move_eval, move_board) = Node::get_ab_eval(node.children.last().unwrap(), depth, local_alpha, f64::MAX);
+                    let (move_eval, move_board) = Node::get_ab_eval(&tmpcell, depth, local_alpha, f64::MAX);
+                    Node::add_child(node, tmpcell);
+                    if move_eval <= best_eval {
+                        best_eval = move_eval;
+                        best_board = *board;
+                    }
+                    if move_eval < local_alpha {
+                        local_alpha = move_eval;
+                    }
+                    if move_eval < local_beta {
+                        break
+                    }
+                }
+            }
+            return (best_eval, best_board)
+        }
+    }
+
+    // pub fn n_ply_dfs(node_cell: &Rc<RefCell<Node>>, n: usize) -> f64 {
+
+    //     let node = &mut *node_cell.borrow_mut();
+
+    //     if node.depth == n {
+    //         return node.static_eval;
+    //     } else {
+
+    //         let alpha: f64 = node.static_eval;
+    //         let beta: f64 = node.static_eval;
+
+    //         let move_list: Vec<Board> = node.board.generate_move_list();
+
+    //         for board in move_list.iter() {
+    //             let static_eval: f64 = evaluate(&board);
+
+    //             let mut child_node = Node {
+    //                     depth: node.depth + 1,
+    //                     board: board.clone(),
+    //                     static_eval: static_eval,
+    //                     deep_eval: static_eval,
+    //                     best_next_move: None,
+    //                     parent: Some(Rc::downgrade(&node_cell)),
+    //                     children: vec![]
+    //                 };
+
+    //             child_node
+
+    //             Node::add_child(
+    //                 node,
+    //                 child_node
+    //             );
+    //             return Node::n_ply_dfs(&node.children.last().unwrap(), n);
+    //         }
+    //         return 0.0;
+    //     }
+    // }
     
     pub fn search_n_plys(node_cell:&Rc<RefCell<Node>>, n: usize) {
+
+        let alpha: f64 = node_cell.borrow().static_eval;
+        let beta: f64 = node_cell.borrow().static_eval;
         
-        for i in 0..n {
-            Node::search_next_ply(node_cell);
+        for _ in 0..n {
+            Node::search_next_ply(node_cell, alpha, beta);
         }
         Node::pull_best_up(node_cell);
     }
 
-    fn search_next_ply(node_cell: &Rc<RefCell<Node>>) {
+    fn search_next_ply(node_cell: &Rc<RefCell<Node>>, alpha: f64, beta: f64) {
 
         let node = &mut *node_cell.borrow_mut();
 
         if !node.children.is_empty() {
             for child in node.children.iter() {
-                Node::search_next_ply(&child);
+                Node::search_next_ply(&child, alpha, beta);
             }
         }
 

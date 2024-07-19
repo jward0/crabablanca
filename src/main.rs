@@ -25,20 +25,38 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     let mut renderer = Renderer::new()?;
 
-    let player_colour: u8 = 2; // 1 for white, 0 for black
-    let depth: usize = 4;
+    let mut player_colour: Vec<u8> = vec![1, 0]; // [1] for white, [0] for black, [] for engine vs. engine, [1, 0] for self vs. self
+    let depth: usize = 20;
+    let mut showme = false;
 
     enable_raw_mode()?;
 
-    loop {
+    for _ in 0..100 {
+        // std::thread::sleep(time::Duration::from_secs(1));
 
         let search_node = Rc::new(RefCell::new(Node::new(&board)));
         
         renderer.parse_board(&board)?;
 
-        Node::search_n_plys(&search_node, depth);
-        
-        println!("{}, {}", search_node.borrow().static_eval, search_node.borrow().deep_eval);
+        if showme {
+            let move_list = board.generate_move_list();
+
+            for move_ in move_list {
+                renderer.parse_board(&move_)?;
+                std::thread::sleep(std::time::Duration::from_secs(1))
+            }
+        }
+
+        renderer.parse_board(&board)?;
+
+        //Node::search_n_plys(&search_node, depth);
+        Node::process_node_cell(&search_node, depth);
+        execute!(
+            io::stdout(),
+            cursor::MoveToColumn(0),
+            Clear(ClearType::CurrentLine)
+        )?;
+        println!("{}, {}, {}", search_node.borrow().children.len(), search_node.borrow().static_eval, search_node.borrow().deep_eval);
         execute!(
             io::stdout(),
             cursor::MoveToColumn(0),
@@ -65,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>>{
             break;
         }
 
-        if board.to_move == player_colour {
+        if player_colour.contains(&board.to_move){
 
             let mut input = String::new();
             // Capture input
@@ -99,6 +117,14 @@ fn main() -> Result<(), Box<dyn Error>>{
                 disable_raw_mode()?;
                 println!();
                 return Ok(())
+            } else if input == "next" {
+                if let Some(next_move) = search_node.borrow().best_next_move.clone() {
+                    board = next_move;
+                };
+            } else if input == "play" {
+                player_colour = vec![];
+            } else if input == "showme" {
+                showme = true;
             } else {
                 let boardop: Option<Board> = board.parse_input(&input);
                 match boardop {
@@ -110,6 +136,7 @@ fn main() -> Result<(), Box<dyn Error>>{
                             cursor::MoveToColumn(0),
                             Clear(ClearType::CurrentLine)
                         )?;
+                        std::thread::sleep(time::Duration::from_secs(1));
                     }
                 }
             }
@@ -122,6 +149,7 @@ fn main() -> Result<(), Box<dyn Error>>{
         }
 
     }
+    disable_raw_mode()?;
     Ok(())
 }
 

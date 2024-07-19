@@ -50,10 +50,13 @@ impl Board {
             black_bishops:   0x2400000000000000,
             black_rooks:     0x8100000000000000,
             black_queens:    0x0800000000000000,
+            // black_queens:    0x0000000000100000,
             black_king:      0x1000000000000000,
 
             all_white:       0x000000000000FFFF,
+            // all_white:       0x000000000000EFFF,
             all_black:       0xFFFF000000000000,
+            // all_black:       0xFFFF000000100000,
             all_pieces:      0xFFFF00000000FFFF,
 
             // all_white:       0x00000000000000FF,
@@ -132,29 +135,29 @@ impl Board {
         //     black_checks += self.reverse_move_mask(piece_type, white_to_move, self.black_king) & self.get_pieces(piece_type, white_to_move);
         // }
 
-        white_checks = pawn_capture_mask(self.white_king, 
-                                         1) & self.black_pawns +
-                       knight_move_mask(self.white_king, 
-                                        self.all_white) & self.black_knights +
-                       bishop_move_mask(self.white_king, 
+        white_checks = (pawn_capture_mask(self.white_king, 
+                                         1) & self.black_pawns) +
+                       (knight_move_mask(self.white_king, 
+                                        self.all_white) & self.black_knights) +
+                       (bishop_move_mask(self.white_king, 
                                         self.all_white, 
-                                        self.all_black) & (self.black_bishops | self.black_queens) +
-                       rook_move_mask(self.white_king, 
+                                        self.all_black) & (self.black_bishops | self.black_queens)) +
+                       (rook_move_mask(self.white_king, 
                                       self.all_white,
-                                      self.all_black) & (self.black_rooks | self.black_queens); 
+                                      self.all_black) & (self.black_rooks | self.black_queens)); 
 
-        black_checks = pawn_capture_mask(self.black_king, 
-                                         0) & self.white_pawns +
-                      knight_move_mask(self.black_king, 
-                                       self.all_black) & self.white_knights +
-                      bishop_move_mask(self.black_king, 
-                                       self.all_black, 
-                                       self.all_white) & (self.white_bishops | self.white_queens) +
-                      rook_move_mask(self.black_king, 
-                                     self.all_black,
-                                     self.all_white) & (self.white_rooks | self.white_queens); 
+        black_checks = (pawn_capture_mask(self.black_king, 
+                                         0) & self.white_pawns) +
+                       (knight_move_mask(self.black_king, 
+                                        self.all_black) & self.white_knights) +
+                       (bishop_move_mask(self.black_king, 
+                                        self.all_black, 
+                                        self.all_white) & (self.white_bishops | self.white_queens)) +
+                       (rook_move_mask(self.black_king, 
+                                      self.all_black,
+                                      self.all_white) & (self.white_rooks | self.white_queens)); 
 
-        (white_checks != 0, black_checks !=0)
+        (white_checks != 0, black_checks != 0)
     }
 
     pub fn check_checkmate(&self, checks: (bool, bool)) -> (bool, bool) {
@@ -374,7 +377,7 @@ impl Board {
             // Double moves
             if (pawn & pawn_start_row) != 0 {
                 let double_move: u64 = bidirectional_shift(pawn, 16, self.to_move);
-                if (self.all_pieces & double_move) == 0 {
+                if (self.all_pieces & double_move) == 0 && (self.all_pieces & single_move) == 0 {
                     pawn_moves.push(double_move)
                 }
             }
