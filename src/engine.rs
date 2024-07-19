@@ -170,7 +170,7 @@ impl Node {
 
             let move_list: Vec<Board> = node.board.generate_move_list();
 
-            for board in move_list.iter() {
+            for board in move_list.iter().rev() {
                 let static_eval: f64 = evaluate(&board);
 
                 let tmpcell = Rc::new(RefCell::new(

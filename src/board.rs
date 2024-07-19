@@ -166,15 +166,17 @@ impl Board {
         // }
 
         white_checks = (pawn_capture_mask(self.white_king, 
-                                         1) & self.black_pawns) +
+                                          1) & self.black_pawns) +
                        (knight_move_mask(self.white_king, 
-                                        self.all_white) & self.black_knights) +
+                                         self.all_white) & self.black_knights) +
                        (bishop_move_mask(self.white_king, 
-                                        self.all_white, 
-                                        self.all_black) & (self.black_bishops | self.black_queens)) +
+                                         self.all_white, 
+                                         self.all_black) & (self.black_bishops | self.black_queens)) +
                        (rook_move_mask(self.white_king, 
-                                      self.all_white,
-                                      self.all_black) & (self.black_rooks | self.black_queens)); 
+                                       self.all_white,
+                                       self.all_black) & (self.black_rooks | self.black_queens)) + 
+                       (king_move_mask(self.white_king,
+                                       self.all_white) & self.black_king); 
 
         black_checks = (pawn_capture_mask(self.black_king, 
                                          0) & self.white_pawns) +
@@ -185,7 +187,9 @@ impl Board {
                                         self.all_white) & (self.white_bishops | self.white_queens)) +
                        (rook_move_mask(self.black_king, 
                                       self.all_black,
-                                      self.all_white) & (self.white_rooks | self.white_queens)); 
+                                      self.all_white) & (self.white_rooks | self.white_queens)) + 
+                       (king_move_mask(self.black_king,
+                                       self.all_black) & self.white_king); 
 
         (white_checks != 0, black_checks != 0)
     }
@@ -397,12 +401,7 @@ impl Board {
             let single_move: u64 = bidirectional_shift(pawn, 8, self.to_move);
         
             if (self.all_pieces & single_move) == 0 {
-                // Check for promotion
-                if (single_move & pawn_promote_row) != 0 {
-                    // TODO: IMPLEMENT PROMOTION
-                } else {
-                    pawn_moves.push(single_move)
-                }
+                pawn_moves.push(single_move)
             }
             // Double moves
             if (pawn & pawn_start_row) != 0 {

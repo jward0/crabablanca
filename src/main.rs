@@ -29,6 +29,8 @@ fn main() -> Result<(), Box<dyn Error>>{
     let mut depth: usize = 4;
     let mut showme = false;
 
+    // TODO: castling, king safety eval, en passant, transposition tables
+
     enable_raw_mode()?;
 
     for _ in 0..100 {
