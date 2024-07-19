@@ -50,13 +50,10 @@ impl Board {
             black_bishops:   0x2400000000000000,
             black_rooks:     0x8100000000000000,
             black_queens:    0x0800000000000000,
-            // black_queens:    0x0000000000100000,
             black_king:      0x1000000000000000,
 
             all_white:       0x000000000000FFFF,
-            // all_white:       0x000000000000EFFF,
             all_black:       0xFFFF000000000000,
-            // all_black:       0xFFFF000000100000,
             all_pieces:      0xFFFF00000000FFFF,
 
             // all_white:       0x00000000000000FF,
@@ -98,10 +95,35 @@ impl Board {
             white_checkmate: false,
             black_checkmate: false
         };
-        
-        let (wc, bc): (bool, bool) = ib.check_check();
 
+        let wp: u64;
+        let wq: u64;
+        let bp: u64;
+        let bq: u64;
+
+        // Check promotions
+        
+        if self.to_move == 1 && from & self.white_pawns != 0 && to & RANK_8 != 0 {
+            // White pawn promotion
+            wp = ib.white_pawns - to;
+            wq = ib.white_queens + to;
+            bp = ib.black_pawns;
+            bq = ib.black_queens;
+        } else if self.to_move == 0 && from & self.black_pawns != 0 && to & RANK_1 != 0 {
+            // Black pawn promotion
+            wp = ib.white_pawns;
+            wq = ib.white_queens;
+            bp = ib.black_pawns - to;
+            bq = ib.black_queens + to;
+        } else {
+            wp = ib.white_pawns;
+            wq = ib.white_queens;
+            bp = ib.black_pawns;
+            bq = ib.black_queens;
+        }
+        
         // Check for illegally moving into check
+        let (wc, bc): (bool, bool) = ib.check_check();
         if (self.to_move == 1 && wc) || (self.to_move == 0 && bc) {
             return None
         }
@@ -110,6 +132,12 @@ impl Board {
         let (wcm, bcm) = ib.check_checkmate((wc, bc));
 
         let new_board: Board = Board {
+            white_pawns:    wp,
+            black_pawns:    bp,
+            
+            white_queens:    wq,
+            black_queens:    bq,
+
             white_check:     wc,
             black_check:     bc,
 
@@ -117,6 +145,8 @@ impl Board {
             black_checkmate: bcm,
             ..ib
         };
+
+
 
         Some(new_board)
     }

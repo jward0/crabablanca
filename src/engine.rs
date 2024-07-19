@@ -39,7 +39,7 @@ fn evaluate(board: &Board) -> f64 {
     let white_central_pawns: f64 = count_bits(board.white_pawns & CENTRE) as f64;
     let black_central_pawns: f64 = count_bits(board.black_pawns & CENTRE) as f64;
 
-    let centrality_advantage: f64 = white_central_pawns - black_central_pawns;
+    let centrality_advantage: f64 = 0.1 * (white_central_pawns - black_central_pawns);
 
     // Encourage attacking play
     let checks_advantage: f64 = checks.1 as u8 as f64 - checks.0 as u8 as f64;
@@ -56,6 +56,8 @@ fn evaluate(board: &Board) -> f64 {
     let white_mobility = wb.generate_move_list().len();
     let black_mobility = bb.generate_move_list().len();
     let mobility_advantage: f64 = 0.1 * (white_mobility as f64 - black_mobility as f64);
+
+    // Encourage king safety
 
     return material_advantage + centrality_advantage + checks_advantage + mobility_advantage;
 } 
@@ -146,7 +148,7 @@ impl Node {
 
     pub fn process_node_cell(node_cell: &Rc<RefCell<Node>>, depth: usize) {
 
-        let (deep_eval, next_move) = Node::get_ab_eval(node_cell, depth, 9999.0, -9999.0);
+        let (deep_eval, next_move) = Node::get_ab_eval(node_cell, depth, f64::MAX, f64::MIN);
         let node = &mut *node_cell.borrow_mut();
         node.deep_eval = deep_eval;
         node.best_next_move = Some(next_move);
@@ -170,26 +172,13 @@ impl Node {
 
             for board in move_list.iter() {
                 let static_eval: f64 = evaluate(&board);
-                // Node::add_child(
-                //     node,
-                //     Rc::new(RefCell::new(
-                //         Node {
-                //             depth: node.depth + 1,
-                //             board: board.clone(),
-                //             static_eval: 0.0,
-                //             deep_eval: 0.0,
-                //             best_next_move: None,
-                //             parent: Some(Rc::downgrade(&node_cell)),
-                //             children: vec![]
-                //         }
-                //     )));
 
                 let tmpcell = Rc::new(RefCell::new(
                     Node {
                         depth: node.depth + 1,
                         board: board.clone(),
                         static_eval: static_eval,
-                        deep_eval: static_eval,
+                        deep_eval: 0.0,
                         best_next_move: None,
                         parent: Some(Rc::downgrade(&node_cell)),
                         children: vec![]
@@ -197,30 +186,22 @@ impl Node {
                 ));
 
                 if node.board.to_move == 1 {
-                    // let (move_eval, move_board) = Node::get_ab_eval(node.children.last().unwrap(), depth, f64::MIN, local_beta);
-                    let (move_eval, move_board) = Node::get_ab_eval(&tmpcell, depth, f64::MIN, local_beta);
+                    let (move_eval, _) = Node::get_ab_eval(&tmpcell, depth, f64::MAX, best_eval);
                     Node::add_child(node, tmpcell);
                     if move_eval >= best_eval {
                         best_eval = move_eval;
                         best_board = *board;
-                    }
-                    if move_eval > local_beta {
-                        local_beta = move_eval;
                     }
                     if move_eval > local_alpha {
                         break
                     }
 
                 } else {
-                    // let (move_eval, move_board) = Node::get_ab_eval(node.children.last().unwrap(), depth, local_alpha, f64::MAX);
-                    let (move_eval, move_board) = Node::get_ab_eval(&tmpcell, depth, local_alpha, f64::MAX);
+                    let (move_eval, _) = Node::get_ab_eval(&tmpcell, depth, best_eval, f64::MIN);
                     Node::add_child(node, tmpcell);
                     if move_eval <= best_eval {
                         best_eval = move_eval;
                         best_board = *board;
-                    }
-                    if move_eval < local_alpha {
-                        local_alpha = move_eval;
                     }
                     if move_eval < local_beta {
                         break
