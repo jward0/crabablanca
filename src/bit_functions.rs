@@ -273,3 +273,26 @@ pub fn king_move_mask(bit: u64, own_pieces: u64) -> u64 {
     let row: u64 = sl(bit) | sr(bit) | bit;
     (row | su(row) | sd(row) & !bit) & !own_pieces
 }
+
+pub fn king_forward_mask(bit: u64, to_move: u8) -> u64 {
+
+    let row: u64 = sl(bit) | sr(bit) | bit;
+
+    if to_move == 1 {
+        su(row)
+    } else {
+        sd(row)
+    }
+}
+
+pub fn manhattan_distance(bit1: u64, bit2: u64) -> u32 {
+
+    let b1 = bit1.trailing_zeros();
+    let b2 = bit2.trailing_zeros();
+
+    if b2 > b1 {
+        (b2 - b1) / 8 + (b2 - b1) % 8
+    } else {
+        (b1 - b2) / 8 + (b1 - b2) % 8 
+    }
+}

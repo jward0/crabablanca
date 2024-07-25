@@ -28,6 +28,9 @@ pub struct Board {
     pub white_checkmate: bool,
     pub black_checkmate: bool,
 
+    pub white_castle_flags: (bool, bool),
+    pub black_castle_flags: (bool, bool),
+
     pub to_move:         u8 // 1 for white to move, 0 for black to move
     // I appreciate this is a silly way round but just live with it for now
 
@@ -60,6 +63,9 @@ impl Board {
             // all_black:       0xFF00000000000000,
             // all_pieces:      0xFF000000000000FF,
 
+            white_castle_flags: (true, true),
+            black_castle_flags: (true, true),
+
             to_move:         1,
 
             white_check:     false,
@@ -72,22 +78,49 @@ impl Board {
 
     fn apply_move(&self, from: u64, to: u64) -> Option<Board> {
         
+        // Add rook moves from castling
+
+        let mut white_rooks: u64 = self.white_rooks;
+        let mut black_rooks: u64 = self.black_rooks;
+
+        if self.to_move == 1 {
+
+            if from == self.white_king {
+                if to == self.white_king << 2 {
+                    white_rooks = move_piece(white_rooks, 0x0000000000000080, self.white_king << 1);
+                } else if to == self.white_king >> 2 {
+                    white_rooks = move_piece(white_rooks, 0x0000000000000001, self.white_king >> 1);
+                }
+            }
+        } else {
+
+            if from == self.black_king {
+                if to == self.black_king << 2 {
+                    black_rooks = move_piece(black_rooks, 0x8000000000000000, self.black_king << 1);
+                } else if to == self.black_king >> 2 {
+                    black_rooks = move_piece(black_rooks, 0x0100000000000000, self.black_king >> 1);
+                }
+            }
+        }
+
         let ib: Board = Board {
             white_pawns:   move_piece(self.white_pawns, from, to),
             white_knights: move_piece(self.white_knights, from, to),
             white_bishops: move_piece(self.white_bishops, from, to),
-            white_rooks:   move_piece(self.white_rooks, from, to),
+            white_rooks:   move_piece(white_rooks, from, to),
             white_queens:  move_piece(self.white_queens, from, to),
             white_king:    move_piece(self.white_king, from, to),
             black_pawns:   move_piece(self.black_pawns, from, to),
             black_knights: move_piece(self.black_knights, from, to),
             black_bishops: move_piece(self.black_bishops, from, to),
-            black_rooks:   move_piece(self.black_rooks, from, to),
+            black_rooks:   move_piece(black_rooks, from, to),
             black_queens:  move_piece(self.black_queens, from, to),
             black_king:    move_piece(self.black_king, from, to),
             all_white:     move_piece(self.all_white, from, to),
             all_black:     move_piece(self.all_black, from, to),
             all_pieces:    move_piece(self.all_pieces, from, to),
+            white_castle_flags: (true, true),
+            black_castle_flags: (true, true),
             to_move:       self.to_move ^ 1,
             white_check:     false,
             black_check:     false,
@@ -96,13 +129,44 @@ impl Board {
             black_checkmate: false
         };
 
+        // Check invalidating castling
+
+        let mut w_qsc: bool = self.white_castle_flags.0;
+        let mut w_ksc: bool = self.white_castle_flags.1;
+        let mut b_qsc: bool = self.black_castle_flags.0;
+        let mut b_ksc: bool = self.black_castle_flags.1;
+
+        if self.to_move == 1 {
+            if w_qsc && from == 0x0000000000000001 {
+                w_qsc = false;
+            }
+            if w_ksc && from == 0x0000000000000080 {
+                w_ksc = false;
+            }
+            if (w_ksc || w_qsc) && from == 0x0000000000000010 {
+                w_qsc = false;
+                w_ksc = false;
+            }
+        } else {
+            if b_qsc && from == 0x0100000000000000 {
+                b_qsc = false;
+            }
+            if b_ksc && from == 0x8000000000000000 {
+                b_ksc = false;
+            }
+            if (b_ksc || b_qsc) && from == 0x1000000000000000 {
+                b_qsc = false;
+                b_ksc = false;
+            }
+        }
+
+        // Check promotions
+
         let wp: u64;
         let wq: u64;
         let bp: u64;
         let bq: u64;
 
-        // Check promotions
-        
         if self.to_move == 1 && from & self.white_pawns != 0 && to & RANK_8 != 0 {
             // White pawn promotion
             wp = ib.white_pawns - to;
@@ -143,21 +207,20 @@ impl Board {
 
             white_checkmate: wcm,
             black_checkmate: bcm,
+
+            white_castle_flags: (w_qsc, w_ksc),
+            black_castle_flags: (b_qsc, b_ksc),
+
             ..ib
         };
-
-
 
         Some(new_board)
     }
 
     pub fn check_check(&self) -> (bool, bool) {
 
-        let white_to_move: u8 = 1;
-        let black_to_move: u8 = 0;
-
-        let mut white_checks: u64 = 0;
-        let mut black_checks: u64 = 0;
+        let white_checks: u64;
+        let black_checks: u64;
 
         // for piece_type in ['p', 'n', 'b', 'r', 'q'] {
 
@@ -366,20 +429,17 @@ impl Board {
     pub fn generate_move_list(&self) -> Vec<Board> {
 
         let pawn_start_row: u64;
-        let pawn_promote_row: u64;
         let own_pieces: u64;
         let enemy_pieces: u64;
 
         if self.to_move == 1 {
             // White to move
             pawn_start_row = RANK_2;
-            pawn_promote_row = RANK_8;
             own_pieces = self.all_white;
             enemy_pieces = self.all_black;
         } else {
             // Black to move
             pawn_start_row = RANK_7;
-            pawn_promote_row = RANK_1;
             own_pieces = self.all_black;
             enemy_pieces = self.all_white;
         }
@@ -433,6 +493,8 @@ impl Board {
 
         }
 
+        // Generate non-pawn standard moves
+
         for piece_type in ['n', 'b', 'r', 'q', 'k'] {
             let pieces: Vec<u64> = iterate_over(self.get_pieces(piece_type, self.to_move));
             for piece in pieces {
@@ -455,6 +517,60 @@ impl Board {
         }
 
         // Generate castling moves
+
+        let mut is_castle_legal: (bool, bool) = (true, true);
+
+        let castle_flags: (bool, bool);
+        let king: u64;
+
+        if self.to_move == 1 {
+            castle_flags = self.white_castle_flags;
+            king = self.white_king;
+            is_castle_legal.0 = self.all_pieces & 0x000000000000000E == 0;
+            is_castle_legal.1 = self.all_pieces & 0x0000000000000060 == 0;
+        } else {
+            castle_flags = self.black_castle_flags;
+            king = self.black_king;
+            is_castle_legal.0 = self.all_pieces & 0x0E00000000000000 == 0;
+            is_castle_legal.1 = self.all_pieces & 0x6000000000000000 == 0;
+        }
+
+        // Queenside castling
+        if castle_flags.0 && is_castle_legal.0 {
+            for i in 1..2 {
+                if let Some(_) =  self.apply_move(king, king >> i) {
+                    ();
+                } else {
+                    is_castle_legal.0 = false;
+                    break;
+                }
+            }
+            if is_castle_legal.0 {
+                let new_board = self.apply_move(king, king >> 2);
+                match new_board {
+                    Some(board) => move_list.push(board),
+                    None => {}
+                }
+            }
+        }
+        // Kingside castling
+        if castle_flags.1 && is_castle_legal.1 {
+            for i in 1..2 {
+                if let Some(_) =  self.apply_move(king, king << i) {
+                    ();
+                } else {
+                    is_castle_legal.1 = false;
+                    break;
+                }
+            }
+            if is_castle_legal.1 {
+                let new_board = self.apply_move(king, king << 2);
+                match new_board {
+                    Some(board) => move_list.push(board),
+                    None => {}
+                }
+            }
+        }
 
         move_list
 

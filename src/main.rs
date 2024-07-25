@@ -26,10 +26,11 @@ fn main() -> Result<(), Box<dyn Error>>{
     let mut renderer = Renderer::new()?;
 
     let mut player_colour: Vec<u8> = vec![1, 0]; // [1] for white, [0] for black, [] for engine vs. engine, [1, 0] for self vs. self
-    let mut depth: usize = 4;
+    let depth: usize = 4;
     let mut showme = false;
 
-    // TODO: castling, king safety eval, en passant, transposition tables
+    // TODO: doubled pawn eval, en passant, transposition tables, multithreading
+    // Performance improvements: block_ray, knight_move_mask, move_piece (maybe?)
 
     enable_raw_mode()?;
 
@@ -59,13 +60,7 @@ fn main() -> Result<(), Box<dyn Error>>{
             Clear(ClearType::CurrentLine)
         )?;
         println!("{}, {}, {}, {}", search_node.borrow().children.len(), search_node.borrow().static_eval, search_node.borrow().deep_eval, depth);
-        
-        // for child in search_node.borrow().children.iter() {
-        //     println!("{}", Node::get_ab_eval(child, depth, 9999.0, -9999.0).0);
-        // }
-        // println!("{}", Node::get_ab_eval(&search_node, depth, 9999.0, -9999.0).0);
-        
-        // depth -= 1;
+                
         execute!(
             io::stdout(),
             cursor::MoveToColumn(0),

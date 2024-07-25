@@ -2,7 +2,7 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 use crate::board::Board;
-use crate::bit_functions::count_bits;
+use crate::bit_functions::{count_bits, iterate_over, manhattan_distance, king_forward_mask, queen_move_mask};
 use crate::constants::*;
 
 fn evaluate(board: &Board) -> f64 {
@@ -57,9 +57,16 @@ fn evaluate(board: &Board) -> f64 {
     let black_mobility = bb.generate_move_list().len();
     let mobility_advantage: f64 = 0.1 * (white_mobility as f64 - black_mobility as f64);
 
-    // Encourage king safety
+    // Encourage king safety by counting squares with view on the king (ignoring knights for now)
 
-    return material_advantage + centrality_advantage + checks_advantage + mobility_advantage;
+    let white_king_shield = count_bits(king_forward_mask(board.white_king, 1) & board.white_pawns) as u32;
+    let black_king_shield = count_bits(king_forward_mask(board.black_king, 0) & board.black_pawns) as u32;
+    // let white_king_tropism: u32 = iterate_over(board.all_black).into_iter().map(|b| {manhattan_distance(board.white_king, b)}).sum();
+    // let black_king_tropism: u32 = iterate_over(board.all_white).into_iter().map(|b| {manhattan_distance(board.black_king, b)}).sum();
+
+    let king_safety_advantage = (white_king_shield - black_king_shield) as f64;
+
+    return material_advantage + centrality_advantage + checks_advantage + mobility_advantage + king_safety_advantage;
 } 
 
 
