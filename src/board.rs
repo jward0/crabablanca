@@ -31,6 +31,9 @@ pub struct Board {
     pub white_castle_flags: (bool, bool),
     pub black_castle_flags: (bool, bool),
 
+    pub white_en_passant_flags: u8,
+    pub black_en_passant_flags: u8,
+
     pub to_move:         u8 // 1 for white to move, 0 for black to move
     // I appreciate this is a silly way round but just live with it for now
 
@@ -65,6 +68,9 @@ impl Board {
 
             white_castle_flags: (true, true),
             black_castle_flags: (true, true),
+
+            white_en_passant_flags: 0x00,
+            black_en_passant_flags: 0x00,
 
             to_move:         1,
 
@@ -121,13 +127,21 @@ impl Board {
             all_pieces:    move_piece(self.all_pieces, from, to),
             white_castle_flags: (true, true),
             black_castle_flags: (true, true),
-            to_move:       self.to_move ^ 1,
+            white_en_passant_flags: 0x00,
+            black_en_passant_flags: 0x00,
+
+            to_move:         self.to_move ^ 1,
             white_check:     false,
             black_check:     false,
 
             white_checkmate: false,
             black_checkmate: false
         };
+
+        // Adjust en passant flags
+        if self.to_move == 1 {
+
+        }
 
         // Check invalidating castling
 
@@ -351,6 +365,21 @@ impl Board {
         }
     }
 
+    pub fn get_legal_castles(&self) -> (bool, bool) {
+
+        let mut is_castle_legal: (bool, bool) = (false, false);
+
+        if self.to_move == 1 {
+            is_castle_legal.0 = self.all_pieces & 0x000000000000000E == 0 && self.white_castle_flags.0;
+            is_castle_legal.1 = self.all_pieces & 0x0000000000000060 == 0 && self.white_castle_flags.1;
+        } else {
+            is_castle_legal.0 = self.all_pieces & 0x0E00000000000000 == 0 && self.black_castle_flags.0;
+            is_castle_legal.1 = self.all_pieces & 0x6000000000000000 == 0 && self.black_castle_flags.1;
+        }
+
+        is_castle_legal
+    }
+
     pub fn parse_input(&self, input: &String) -> Option<Board> {
 
         if !input.is_ascii() {
@@ -415,7 +444,20 @@ impl Board {
         let available_pieces: u64 = self.get_pieces(piece_type, self.to_move) & disambiguation;
 
         let to: u64 = coord_to_bit((rank, file));
-        let from: u64 = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces & disambiguation;
+        
+        let from: u64;
+
+        // Process possible castle move, if not castling then get valid pieces
+
+        let king: u64 = if self.to_move == 1 {self.white_king} else {self.black_king};
+
+        let is_castle_legal = self.get_legal_castles();
+
+        if (is_castle_legal.0 && piece_type == 'k' && to == king >> 2) || (is_castle_legal.1 && piece_type == 'k' && to == king << 2) {
+            from = king;
+        } else {
+            from = self.reverse_move_mask(piece_type, self.to_move, to) & available_pieces & disambiguation;
+        }
 
         if from == 0 {
             return None;
@@ -518,7 +560,24 @@ impl Board {
 
         // Generate castling moves
 
-        let mut is_castle_legal: (bool, bool) = (true, true);
+        // let mut is_castle_legal: (bool, bool) = (true, true);
+
+        // let mut castle_flags: (bool, bool);
+        // let king: u64;
+
+        // if self.to_move == 1 {
+        //     castle_flags = self.white_castle_flags;
+        //     king = self.white_king;
+        //     is_castle_legal.0 = self.all_pieces & 0x000000000000000E == 0;
+        //     is_castle_legal.1 = self.all_pieces & 0x0000000000000060 == 0;
+        // } else {
+        //     castle_flags = self.black_castle_flags;
+        //     king = self.black_king;
+        //     is_castle_legal.0 = self.all_pieces & 0x0E00000000000000 == 0;
+        //     is_castle_legal.1 = self.all_pieces & 0x6000000000000000 == 0;
+        // }
+
+        let mut is_castle_legal = self.get_legal_castles();
 
         let castle_flags: (bool, bool);
         let king: u64;
@@ -526,13 +585,9 @@ impl Board {
         if self.to_move == 1 {
             castle_flags = self.white_castle_flags;
             king = self.white_king;
-            is_castle_legal.0 = self.all_pieces & 0x000000000000000E == 0;
-            is_castle_legal.1 = self.all_pieces & 0x0000000000000060 == 0;
         } else {
             castle_flags = self.black_castle_flags;
             king = self.black_king;
-            is_castle_legal.0 = self.all_pieces & 0x0E00000000000000 == 0;
-            is_castle_legal.1 = self.all_pieces & 0x6000000000000000 == 0;
         }
 
         // Queenside castling
