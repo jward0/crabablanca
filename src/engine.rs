@@ -57,8 +57,7 @@ fn evaluate(board: &Board) -> f64 {
     let black_mobility = bb.generate_move_list().len();
     let mobility_advantage: f64 = 0.1 * (white_mobility as f64 - black_mobility as f64);
 
-    // Encourage king safety by counting squares with view on the king (ignoring knights for now)
-
+    // Encourage king safety
     let white_king_shield = count_bits(king_forward_mask(board.white_king, 1) & board.white_pawns) as u32;
     let black_king_shield = count_bits(king_forward_mask(board.black_king, 0) & board.black_pawns) as u32;
     // let white_king_tropism: u32 = iterate_over(board.all_black).into_iter().map(|b| {manhattan_distance(board.white_king, b)}).sum();
@@ -66,7 +65,13 @@ fn evaluate(board: &Board) -> f64 {
 
     let king_safety_advantage = (white_king_shield - black_king_shield) as f64;
 
-    return material_advantage + centrality_advantage + checks_advantage + mobility_advantage + king_safety_advantage;
+    // Penalise doubled pawns
+    let white_doubled_pawns: u8 = (0..8).collect::<Vec<usize>>().iter().map(|i| (((FILE_A << i) & board.white_pawns) > 1) as u8).sum();
+    let black_doubled_pawns: u8 = (0..8).collect::<Vec<usize>>().iter().map(|i| (((FILE_A << i) & board.black_pawns) > 1) as u8).sum();
+
+    let doubled_pawn_advantage: f64 = 0.5 * (white_doubled_pawns - black_doubled_pawns) as f64;
+
+    return material_advantage + centrality_advantage + checks_advantage + mobility_advantage + king_safety_advantage + doubled_pawn_advantage;
 } 
 
 
