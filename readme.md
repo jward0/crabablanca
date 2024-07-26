@@ -20,6 +20,8 @@ Exceptions to standard chess notation are as follows:
 
 ### The Crabablanca engine
 Crabablanca is a from-scratch engine.
+#### Board representation
+Crabablanca is built on "bitboards", whereby each set of pieces of a certain type (eg. white rooks, black pawns, etc.) is represented by a 64-bit unsigned integer. Each bit represents a square of the chessboard, and is 1 if a piece is present in that square, and 0 otherwise. This allows for highly compact representation and efficient manipulation of the state of the board.
 #### Evaluation
 Crabablanca considers material balance, central pawns, piece mobility, king safety, doubled pawns, and possible checks when assessing static evaluation. The evaluation function has not been thoroughly tuned, and is a long way from complete.
 #### Search
