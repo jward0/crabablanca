@@ -2,7 +2,7 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 use crate::board::Board;
-use crate::bit_functions::{count_bits, iterate_over, manhattan_distance, king_forward_mask, queen_move_mask};
+use crate::bit_functions::{count_bits, king_forward_mask};
 use crate::constants::*;
 
 fn evaluate(board: &Board) -> f64 {
@@ -106,62 +106,10 @@ impl Node {
     fn add_child(parent: &mut Node, child: Rc<RefCell<Node>>) {
         parent.children.push(child);
     }
-    
-    fn propagate_eval_up(node_cell: &Rc<RefCell<Node>>, deep_eval: f64) {
-        let node: &mut Node = &mut *node_cell.borrow_mut();
-        node.deep_eval = deep_eval;
-        if let Some(weak_parent) = &node.parent {
-            if let Some(parent) = weak_parent.upgrade() {
-                Node::propagate_eval_up(&parent, deep_eval);
-            }
-        }
-    }
-
-    fn propagate_best_next_move_up(node_cell: &Rc<RefCell<Node>>, next_move: &Board) {
-        let node: &mut Node = &mut *node_cell.borrow_mut();
-        node.best_next_move = Some(next_move.clone());
-        if let Some(weak_parent) = &node.parent {
-            if let Some(parent) = weak_parent.upgrade() {
-                Node::propagate_best_next_move_up(&parent, next_move);
-            }
-        }
-    }
-
-    fn pull_best_up(node_cell: &Rc<RefCell<Node>>) {
-
-        let node = &mut *node_cell.borrow_mut();
-
-        if node.children.is_empty() {
-            return
-        }
-
-        let mut best_eval: f64 = if node.board.to_move == 1 {f64::MIN } else {f64::MAX};
-        let mut best_board = Board::new();
-
-        for child in node.children.iter() {
-
-            Node::pull_best_up(child);
-
-            let cb = child.borrow();
-            if node.board.to_move == 1 {
-                if cb.deep_eval > best_eval {
-                    best_eval = cb.deep_eval;
-                    best_board = cb.board.clone();
-                }
-            } else {
-                if node.deep_eval < best_eval {
-                    best_eval = cb.deep_eval;
-                    best_board = cb.board.clone();
-                }
-            }
-        }
-
-        node.deep_eval = best_eval;
-        node.best_next_move = Some(best_board);
-
-    }
 
     pub fn process_node_cell(node_cell: &Rc<RefCell<Node>>, depth: usize) {
+
+        // Carry out deep a/b eval and find best next move for node
 
         let (deep_eval, next_move) = Node::get_ab_eval(node_cell, depth, f64::MAX, f64::MIN);
         let node = &mut *node_cell.borrow_mut();
@@ -171,12 +119,13 @@ impl Node {
 
     pub fn get_ab_eval(node_cell: &Rc<RefCell<Node>>, depth: usize, alpha: f64, beta: f64) -> (f64, Board) {
 
-        let mut local_alpha: f64 = alpha;
-        let mut local_beta: f64 = beta;
+        let local_alpha: f64 = alpha;
+        let local_beta: f64 = beta;
 
         let node = &mut *node_cell.borrow_mut();
 
         if node.depth == depth {
+            // Eval at stopping depth is just static eval
             return (node.static_eval, node.board);
         } else {
 
@@ -199,6 +148,11 @@ impl Node {
                         children: vec![]
                     }
                 ));
+
+                // Alpha-beta eval
+                // White won't choose a move that black has a powerful response to and vice-versa
+                // Neither side will play hope chess, will select moves assuming the other side
+                // will choose best refutation
 
                 if node.board.to_move == 1 {
                     let (move_eval, _) = Node::get_ab_eval(&tmpcell, depth, f64::MAX, best_eval);
@@ -224,87 +178,6 @@ impl Node {
                 }
             }
             return (best_eval, best_board)
-        }
-    }
-
-    // pub fn n_ply_dfs(node_cell: &Rc<RefCell<Node>>, n: usize) -> f64 {
-
-    //     let node = &mut *node_cell.borrow_mut();
-
-    //     if node.depth == n {
-    //         return node.static_eval;
-    //     } else {
-
-    //         let alpha: f64 = node.static_eval;
-    //         let beta: f64 = node.static_eval;
-
-    //         let move_list: Vec<Board> = node.board.generate_move_list();
-
-    //         for board in move_list.iter() {
-    //             let static_eval: f64 = evaluate(&board);
-
-    //             let mut child_node = Node {
-    //                     depth: node.depth + 1,
-    //                     board: board.clone(),
-    //                     static_eval: static_eval,
-    //                     deep_eval: static_eval,
-    //                     best_next_move: None,
-    //                     parent: Some(Rc::downgrade(&node_cell)),
-    //                     children: vec![]
-    //                 };
-
-    //             child_node
-
-    //             Node::add_child(
-    //                 node,
-    //                 child_node
-    //             );
-    //             return Node::n_ply_dfs(&node.children.last().unwrap(), n);
-    //         }
-    //         return 0.0;
-    //     }
-    // }
-    
-    pub fn search_n_plys(node_cell:&Rc<RefCell<Node>>, n: usize) {
-
-        let alpha: f64 = node_cell.borrow().static_eval;
-        let beta: f64 = node_cell.borrow().static_eval;
-        
-        for _ in 0..n {
-            Node::search_next_ply(node_cell, alpha, beta);
-        }
-        Node::pull_best_up(node_cell);
-    }
-
-    fn search_next_ply(node_cell: &Rc<RefCell<Node>>, alpha: f64, beta: f64) {
-
-        let node = &mut *node_cell.borrow_mut();
-
-        if !node.children.is_empty() {
-            for child in node.children.iter() {
-                Node::search_next_ply(&child, alpha, beta);
-            }
-        }
-
-        let move_list: Vec<Board> = node.board.generate_move_list();
-        
-        for board in move_list.iter() {
-
-            let static_eval = evaluate(&board);
-            Node::add_child(
-                node,
-                Rc::new(RefCell::new(
-                    Node {
-                        depth: node.depth + 1,
-                        board: board.clone(),
-                        static_eval: static_eval,
-                        deep_eval: static_eval,
-                        best_next_move: None,
-                        parent: Some(Rc::downgrade(&node_cell)),
-                        children: vec![]
-                    }
-                ))
-            );
         }
     }
 }

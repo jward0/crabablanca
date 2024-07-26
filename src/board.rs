@@ -236,12 +236,6 @@ impl Board {
         let white_checks: u64;
         let black_checks: u64;
 
-        // for piece_type in ['p', 'n', 'b', 'r', 'q'] {
-
-        //     white_checks += self.reverse_move_mask(piece_type, black_to_move, self.white_king) & self.get_pieces(piece_type, black_to_move);
-        //     black_checks += self.reverse_move_mask(piece_type, white_to_move, self.black_king) & self.get_pieces(piece_type, white_to_move);
-        // }
-
         white_checks = (pawn_capture_mask(self.white_king, 
                                           1) & self.black_pawns) +
                        (knight_move_mask(self.white_king, 
@@ -367,6 +361,8 @@ impl Board {
 
     pub fn get_legal_castles(&self) -> (bool, bool) {
 
+        // Checks that castling has not yet happened or been invalidated and all interposing squares are empty
+
         let mut is_castle_legal: (bool, bool) = (false, false);
 
         if self.to_move == 1 {
@@ -490,8 +486,6 @@ impl Board {
 
         // Generate pawn moves
 
-        // Moves
-
         let pawns: Vec<u64> = iterate_over(self.get_pieces('p', self.to_move));
 
         for pawn in pawns {
@@ -522,7 +516,7 @@ impl Board {
                 }
             }
 
-            // En passant not yet implemented
+            // En passant not yet implemented (will it ever be?)
             
             for pawn_move in pawn_moves.iter() {
 
@@ -559,24 +553,6 @@ impl Board {
         }
 
         // Generate castling moves
-
-        // let mut is_castle_legal: (bool, bool) = (true, true);
-
-        // let mut castle_flags: (bool, bool);
-        // let king: u64;
-
-        // if self.to_move == 1 {
-        //     castle_flags = self.white_castle_flags;
-        //     king = self.white_king;
-        //     is_castle_legal.0 = self.all_pieces & 0x000000000000000E == 0;
-        //     is_castle_legal.1 = self.all_pieces & 0x0000000000000060 == 0;
-        // } else {
-        //     castle_flags = self.black_castle_flags;
-        //     king = self.black_king;
-        //     is_castle_legal.0 = self.all_pieces & 0x0E00000000000000 == 0;
-        //     is_castle_legal.1 = self.all_pieces & 0x6000000000000000 == 0;
-        // }
-
         let mut is_castle_legal = self.get_legal_castles();
 
         let castle_flags: (bool, bool);

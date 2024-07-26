@@ -24,17 +24,18 @@ fn main() -> Result<(), Box<dyn Error>>{
     let mut board: Board = Board::new(); 
 
     let mut renderer = Renderer::new()?;
-
-    let mut player_colour: Vec<u8> = vec![1, 0]; // [1] for white, [0] for black, [] for engine vs. engine, [1, 0] for self vs. self
+    
+    // [1] for white, [0] for black, [] for engine vs. engine, [1, 0] for self vs. self
+    let mut player_colour: Vec<u8> = vec![1, 0]; 
     let depth: usize = 4;
     let mut showme = false;
 
-    // TODO: doubled pawn eval, en passant, transposition tables, multithreading
+    // TODO: en passant, transposition tables, multithreading
     // Performance improvements: block_ray, knight_move_mask, move_piece (maybe?)
 
     enable_raw_mode()?;
 
-    for _ in 0..100 {
+    for _ in 0..200 {
         // std::thread::sleep(time::Duration::from_secs(1));
 
         let search_node = Rc::new(RefCell::new(Node::new(&board)));
@@ -117,6 +118,8 @@ fn main() -> Result<(), Box<dyn Error>>{
                 Clear(ClearType::CurrentLine)
             )?;
 
+            // Any new non-move commands go into this match statement
+
             match input.as_str() {
                 "exit" => {
                     disable_raw_mode()?;
@@ -161,38 +164,6 @@ fn main() -> Result<(), Box<dyn Error>>{
                     }
                 }
             }
-
-            // if input == "exit" || input == "quit" {
-            //     disable_raw_mode()?;
-            //     println!();
-            //     return Ok(())
-            // } else if input == "next" {
-            //     if let Some(next_move) = search_node.borrow().best_next_move.clone() {
-            //         board = next_move;
-            //     };
-            // } else if input == "play" {
-            //     player_colour = vec![];
-            // } else if input == "white" {
-            //     player_colour = vec![1];
-            // } else if input == "black" {
-            //     player_colour = vec![0];
-            // } else if input == "showme" {
-            //     showme = true;
-            // } else {
-            //     let boardop: Option<Board> = board.parse_input(&input);
-            //     match boardop {
-            //         Some(b) => board = b,
-            //         None => {
-            //             println!("Invalid or ambiguous command");
-            //             execute!(
-            //                 io::stdout(),
-            //                 cursor::MoveToColumn(0),
-            //                 Clear(ClearType::CurrentLine)
-            //             )?;
-            //             std::thread::sleep(time::Duration::from_secs(1));
-            //         }
-            //     }
-            // }
 
             input.clear();    
         } else {
